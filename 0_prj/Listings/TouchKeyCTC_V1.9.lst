@@ -1,0 +1,638 @@
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE TOUCHKEYCTC_V1_9
+OBJECT MODULE PLACED IN .\Objects\TouchKeyCTC_V1.9.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\TouchKeyCTC_V1.9.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bs
+                    -p;..\2_hal;..\3_app;..\4_user) DEBUG PRINT(.\Listings\TouchKeyCTC_V1.9.lst) OBJECT(.\Objects\TouchKeyCTC_V1.9.obj)
+
+line level    source
+
+   1          
+   2          /****************************************Copyright (c)*************************
+   3          **--------------文件信息-------------------------------------------------------
+   4          **文   件   名: TouchKeyCTC_V1.0.c
+   5          **描        述: 触摸处理总文件
+   6          **使 用 说 明 : 此文件下函数无须用户修改,用户需要调用的文件都在该文件内
+   7          **-----------------------------------------------------------------------------
+   8          ******************************************************************************/
+   9          #include "TouchKeyCTC.h"
+  10          unsigned long int code Tk_TotalChannel = ((unsigned long int)(T_K0_7) + ((unsigned long int)(T_K8_15) << 8
+             -) + ((unsigned long int)(T_K16_23) << 16) + \
+  11                  ((unsigned long int)(T_K24_30) << 24));
+  12          
+  13          //============各个按键灵敏度设置=================================================================
+             -==
+  14          const unsigned int code C_FingerThreshold[] =
+  15          {
+  16                  TK0_FINGER_THRESHOLD,
+  17                  TK1_FINGER_THRESHOLD,
+  18                  TK2_FINGER_THRESHOLD,
+  19                  TK3_FINGER_THRESHOLD,
+  20                  TK4_FINGER_THRESHOLD,
+  21                  TK5_FINGER_THRESHOLD,
+  22                  TK6_FINGER_THRESHOLD,
+  23                  TK7_FINGER_THRESHOLD,
+  24                  TK8_FINGER_THRESHOLD,
+  25                  TK9_FINGER_THRESHOLD,
+  26                  TK10_FINGER_THRESHOLD,
+  27                  TK11_FINGER_THRESHOLD,
+  28                  TK12_FINGER_THRESHOLD,
+  29                  TK13_FINGER_THRESHOLD,
+  30                  TK14_FINGER_THRESHOLD,
+  31                  TK15_FINGER_THRESHOLD,
+  32                  TK16_FINGER_THRESHOLD,
+  33                  TK17_FINGER_THRESHOLD,
+  34                  TK18_FINGER_THRESHOLD,
+  35                  TK19_FINGER_THRESHOLD,
+  36                  TK20_FINGER_THRESHOLD,
+  37                  TK21_FINGER_THRESHOLD,
+  38                  TK22_FINGER_THRESHOLD,
+  39                  TK23_FINGER_THRESHOLD,
+  40                  TK24_FINGER_THRESHOLD,
+  41                  TK25_FINGER_THRESHOLD,
+  42                  TK26_FINGER_THRESHOLD,
+  43                  TK27_FINGER_THRESHOLD,
+  44                  TK28_FINGER_THRESHOLD,
+  45                  TK29_FINGER_THRESHOLD,
+  46                  TK30_FINGER_THRESHOLD,
+  47          };
+  48          
+  49          
+  50          //==============================================================
+  51          //                       触摸变量设置
+  52          //==============================================================
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 2   
+
+  53          unsigned long data  Tktmrcount = 0;
+  54          unsigned long data  AllTouchKeyFlag;                    //按键状态 BIT0代表按键1，以此类推
+  55          unsigned char data      CurrentChannelCnt = 0;
+  56          unsigned char data  tkFreqGrade = 0;
+  57          unsigned char xdata tkstablecnt = 0;
+  58          unsigned char xdata F_TKtmrBOver = 0;
+  59          unsigned int  data  Provisional_Val;
+  60          unsigned long xdata  s_hwTkLongLockFlag;
+  61          unsigned int  xdata  tkSensorDataBuff[TkTotalNum];
+  62          unsigned int  xdata  tkBaseLine[TkTotalNum];
+  63          unsigned char xdata      CurrentChannel[TkTotalNum];
+  64          unsigned int  xdata  tkFilterCapData[TkTotalNum];
+  65          unsigned char xdata  tkReleaseCnt[TkTotalNum];
+  66          unsigned char xdata  tkPressCnt[TkTotalNum];
+  67          unsigned char xdata      tkRestCnt[TkTotalNum];
+  68          int           xdata  tkDifference[TkTotalNum];
+  69          unsigned char xdata  tkNoiseBiggerFlag[TkTotalNum];
+  70          unsigned int  xdata  tkCapData[TkTotalNum][3];
+  71          unsigned char xdata  tkBaseSteadyCnt[TkTotalNum];
+  72          
+  73          //--------------高可靠性---------------------------------
+  74          unsigned char xdata tkLowFingerDataCnt[TkTotalNum];
+  75          unsigned char xdata tkMulCnt;
+  76          //-------------------------------------------------------
+  77          bit  F_tkDetectFinsh;
+  78          bit  F_tkbMultipleKey;
+  79          bit  F_tkBaseNeedUpdata;
+  80          
+  81          tk_user_cfg_t data S_tTkUserCfgStruct;
+  82          
+  83          
+  84          void DelayTk_us(unsigned int delay);
+  85          void TouchKeyPullResDis();
+  86          void TouchKeySetToLow(void);
+  87          void TouchScanChannel(void);
+  88          void TouchScanChannelIniti(void);
+  89          void TouchKeyRestart(void);
+  90          void TouchKeyScan(void);
+  91          
+  92          extern void TouchKey_Service(void);
+  93          extern void tkFilterDataDeal_First();
+  94          extern void tkFilterDataDeal_Double();
+  95          extern void TK_GetDataRenovate();
+  96          extern void TK_BaseLineMultiUpdata();
+  97          
+  98          /*********************************************************
+  99          函  数：DelayTk_us
+ 100          描  述:       延时函数
+ 101          输入值: delay
+ 102          输出值: 无
+ 103          返回值: 无
+ 104          **********************************************************/
+ 105          void DelayTk_us(unsigned int delay)
+ 106          {
+ 107   1              while (delay)
+ 108   1              {
+ 109   2                      delay--;
+ 110   2              }
+ 111   1      }
+ 112          
+ 113          /*********************************************************
+ 114          函  数：GetCurrFingerValue
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 3   
+
+ 115          描  述: 返回通道触摸阈值
+ 116          输入值: 无
+ 117          输出值: 无
+ 118          返回值: 无
+ 119          **********************************************************/
+ 120          unsigned int   GetCurrFingerValue(unsigned char i)
+ 121          {
+ 122   1              unsigned int volatile Fth;
+ 123   1              Fth = C_FingerThreshold[CurrentChannel[i]];
+ 124   1              Fth = Fth * S_tTkUserCfgStruct.tkFigerPressRate / 10;
+ 125   1              return Fth;
+ 126   1      }
+ 127          
+ 128          
+ 129          
+ 130          
+ 131          /*********************************************************
+ 132          函  数：GetTkReliabilityStatus
+ 133          描  述:       获取触摸判断模式是否为CS强干扰模式
+ 134          输入值: 无
+ 135          输出值: 无
+ 136          返回值: 无
+ 137          **********************************************************/
+ 138          
+ 139          unsigned char GetTkReliabilityStatus()
+ 140          {
+ 141   1              return(C_CSFunctionEn);
+ 142   1      }
+ 143          
+ 144          
+ 145          /************************************************************************
+ 146          函  数：TouchKeyRestart
+ 147          描  述: 获取按键抑制确认次数
+ 148          输入值: 无
+ 149          输出值: 无
+ 150          返回值: 返回噪声抑制次数
+ 151          
+ 152          /************************************************************************/
+ 153          
+ 154          unsigned char GettkRestrainNum(void)
+ 155          {
+ 156   1              return ((S_tTkUserCfgStruct.DebounceTimes / C_tkPressRestrianrRatio) + 1);
+ 157   1      }
+ 158          
+ 159          /*********************************************************
+ 160          函  数：GetTKNoiseThreshold
+ 161          描  述:       获取抑制噪声数据
+ 162          输入值: 无
+ 163          输出值: 无
+ 164          返回值: 无
+ 165          **********************************************************/
+ 166          int GetTKNoiseThreshold(unsigned char i)
+ 167          {
+ 168   1              int SetFingerNoisetmp;
+ 169   1              SetFingerNoisetmp = GetCurrFingerValue(i);                          //当前阈值
+ 170   1              SetFingerNoisetmp = SetFingerNoisetmp * C_tkRestrainNoiseVal / 10;  //抑制噪声为触摸阈值的70%
+ 171   1              return SetFingerNoisetmp;
+ 172   1      }
+ 173          
+ 174          
+ 175          #if (C_HighReliabilityMode == 1)
+ 176          unsigned char xdata dTK_NoiseNum_Cnt, dTK_NoiseRet_Cnt;
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 4   
+
+ 177          //-----------------------------------------------------------------//
+ 178          //函数名称： void TouchHighMoiseChk(void)
+ 179          //函数功能： 高噪声和大电压波动检测
+ 180          //输入参数： 无
+ 181          //输出参数： 无
+ 182          //返 回 值： 无
+ 183          //-----------------------------------------------------------------//
+ 184          
+ 185          void  TouchHighMoiseChk()
+ 186          {
+ 187   1              unsigned char Tk_Cnt;
+ 188   1              unsigned int fth;
+ 189   1              int differ;
+ 190   1              dTK_NoiseNum_Cnt = 0;
+ 191   1              for (Tk_Cnt = 0; Tk_Cnt < S_tTkUserCfgStruct.CurrentChannelMax; Tk_Cnt++)
+ 192   1              {
+ 193   2                      fth = C_FingerThreshold[CurrentChannel[Tk_Cnt]];
+ 194   2                      differ = (int)tkBaseLine[Tk_Cnt] - (int)tkSensorDataBuff[Tk_Cnt];
+ 195   2                      if (C_MULTI_KEY_NOISE_NUM != 0)   //多个按键噪声判断功能
+ 196   2                      {
+ 197   3                              if (differ >= 0)
+ 198   3                              {
+ 199   4                                      if (differ >= (((int)fth) * C_MULTI_KEY_NOISE_RATE / 10))//多按键标志判断
+ 200   4                                      {
+ 201   5                                              dTK_NoiseNum_Cnt++;
+ 202   5                                      }
+ 203   4                              }
+ 204   3                      }
+ 205   2              }
+ 206   1      
+ 207   1              //2:2  3:2  4:3  5:3 6:4 7:4 8:5
+ 208   1              if (dTK_NoiseNum_Cnt > (C_MULTI_KEY_NOISE_NUM + 1))   //如果多个按键差值大于40%的阈值，则�
+             -��为有噪声，需要进行环境更新
+ 209   1              {
+ 210   2                      dTK_NoiseNum_Cnt = 0;
+ 211   2                      dTK_NoiseRet_Cnt++;
+ 212   2                      if (dTK_NoiseRet_Cnt >= C_MULTI_KEY_NOISE_RST_CNT)
+ 213   2                      {
+ 214   3                              dTK_NoiseRet_Cnt = 0;
+ 215   3                              AllTouchKeyFlag = 0;
+ 216   3                              F_tkBaseNeedUpdata = 1;           //需要更新环境值
+ 217   3                      }
+ 218   2              }
+ 219   1              else
+ 220   1              {
+ 221   2                      dTK_NoiseRet_Cnt = 0;
+ 222   2              }
+ 223   1      }
+ 224          
+ 225          #endif
+ 226          
+ 227          
+ 228          /*********************************************************
+ 229          函  数：TouchScanChannelIniti
+ 230          描  述:        扫描所有触摸按键，依次选择触摸通道
+ 231          输入值: 无
+ 232          输出值: 无
+ 233          返回值: 无
+ 234          **********************************************************/
+ 235          void TouchScanChannelIniti(void)
+ 236          {
+ 237   1              //------------------------
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 5   
+
+ 238   1              unsigned char   i;
+ 239   1              unsigned char   Ctk_Channel_SelCnt = 0;
+ 240   1              unsigned long int       CurrentResponseKey;
+ 241   1      
+ 242   1              //------------------------
+ 243   1              CurrentResponseKey = Tk_TotalChannel;
+ 244   1              for (i = 0;i < 31;i++)
+ 245   1              {
+ 246   2                      CurrentResponseKey = CurrentResponseKey >> 1;
+ 247   2                      if (CY)
+ 248   2                      {
+ 249   3                              CurrentChannel[Ctk_Channel_SelCnt] = i;
+ 250   3                              Ctk_Channel_SelCnt++;
+ 251   3                              if (Ctk_Channel_SelCnt >= S_tTkUserCfgStruct.CurrentChannelMax) break;
+ 252   3                      }
+ 253   2              }
+ 254   1      }
+ 255          
+ 256          /*********************************************************
+ 257          函  数：TK_Cfg_Init
+ 258          描  述:       触摸按键用户参数设置初始化
+ 259          输入值: 无
+ 260          输出值: 无
+ 261          返回值: 无
+ 262          **********************************************************/
+ 263          
+ 264          void TK_Cfg_Init()
+ 265          {
+ 266   1              S_tTkUserCfgStruct.CurrentChannelMax = TkTotalNum;
+ 267   1              S_tTkUserCfgStruct.DebounceTimes = C_ConfirmFilterCount;
+ 268   1              S_tTkUserCfgStruct.BaseNoise = C_SetNoiseThreshold;
+ 269   1              S_tTkUserCfgStruct.MaximumKeyHoldTime = C_tkContiTouchTime;
+ 270   1              S_tTkUserCfgStruct.OneKeyActive = C_SlideKeyFunc;
+ 271   1              S_tTkUserCfgStruct.PoweronStable = C_tkPoweronStableCycleNum;
+ 272   1              S_tTkUserCfgStruct.CsFunStatus = C_CSFunctionEn;
+ 273   1              S_tTkUserCfgStruct.OneTkUpdataTmr = C_tkOneseSyncUpdateVal;
+ 274   1              S_tTkUserCfgStruct.AllTkUpdataTmr = C_tkAllSyncUpdateVal;
+ 275   1              S_tTkUserCfgStruct.AutoFrequence = C_AutoFrequenceGet;
+ 276   1              S_tTkUserCfgStruct.WaveAbnormal = C_tkWaveAbnormalCount;
+ 277   1              S_tTkUserCfgStruct.ResponseMaxNum = C_tkResponseMaxNum;
+ 278   1              S_tTkUserCfgStruct.tkHighDelicasymode = C_tkHighDelicasy;
+ 279   1              S_tTkUserCfgStruct.tkOneNoiseMultiNum = C_tkOneNoiseMultiNum;
+ 280   1              S_tTkUserCfgStruct.tkFigerLeftRate = C_TKFigerLeftRate;
+ 281   1              S_tTkUserCfgStruct.tkFigerPressRate = C_TKFigerPressRate;
+ 282   1              S_tTkUserCfgStruct.tkUpNoiseUpdateVal = C_tkUpNoiseUpdateVal;
+ 283   1      }
+ 284          
+ 285          
+ 286          
+ 287          /*********************************************************
+ 288          函  数：GetBaselineUpdateThreshold
+ 289          描  述:       获取基值变化速率
+ 290          输入值: 无
+ 291          输出值: 无
+ 292          返回值: 无
+ 293          **********************************************************/
+ 294          int  GetBaselineUpdateThreshold(void)
+ 295          {
+ 296   1              unsigned int tkBaseLineUpdateSpeed;
+ 297   1              tkBaseLineUpdateSpeed = S_tTkUserCfgStruct.BaseNoise;
+ 298   1              tkBaseLineUpdateSpeed = tkBaseLineUpdateSpeed * S_tTkUserCfgStruct.tkOneNoiseMultiNum;         //16倍数
+ 299   1              return tkBaseLineUpdateSpeed;
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 6   
+
+ 300   1      }
+ 301          
+ 302          
+ 303          
+ 304          
+ 305          
+ 306          /*********************************************************
+ 307          函  数：tkAutoFrequenceModeSet
+ 308          描  述:       自动跳频模式设定
+ 309          输入值: 无
+ 310          输出值: 无
+ 311          返回值: 无
+ 312          **********************************************************/
+ 313          void tkAutoFrequenceModeSet()
+ 314          {
+ 315   1              if (S_tTkUserCfgStruct.AutoFrequence)
+ 316   1              {
+ 317   2                      TKCR |= 0X04 | 0X02;
+ 318   2                      //TKINT |= 0x80;                                            //自动跳频每次初值0X40开始跳频
+ 319   2      #if(Header_File==0)
+ 320   2                      TKOSCCR = 0XC0;                                            //选择独立时钟源
+ 321   2      #else
+                              TKCHSEL |= 0X80;
+              #endif
+ 324   2              }
+ 325   1      
+ 326   1      #if(Header_File==0)
+ 327   1      
+ 328   1      #else
+                      if (S_tTkUserCfgStruct.tkHighDelicasymode) TKCHSEL |= 0X20;       //高灵敏度模式
+              #endif
+ 331   1      }
+ 332          
+ 333          
+ 334          
+ 335          /*********************************************************
+ 336          函  数：PortCx_Output_Low
+ 337          描  述:       将CX电容放电
+ 338          输入值: 无
+ 339          输出值: 无
+ 340          返回值: 无
+ 341          **********************************************************/
+ 342          void PortCx_Output_Low()
+ 343          {
+ 344   1              P0PU &= 0X7F;
+ 345   1      #if(Header_File==0)
+ 346   1              P0OD &= 0X7F;
+ 347   1      #endif
+ 348   1              P0IO |= 0x80;
+ 349   1              P0 &= 0X7F;        //输出0
+ 350   1      }
+ 351          /*********************************************************
+ 352          函  数：PortCx_floating
+ 353          描  述:       将CX电容端口配置为输入态
+ 354          输入值: 无
+ 355          输出值: 无
+ 356          返回值: 无
+ 357          **********************************************************/
+ 358          void PortCx_floating()
+ 359          {
+ 360   1              P0PU &= 0X7F;
+ 361   1      #if(Header_File==0)
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 7   
+
+ 362   1              P0OD &= 0X7F;
+ 363   1      #endif
+ 364   1              P0IO &= 0X7F;       //浮空输入
+ 365   1      
+ 366   1      }
+ 367          
+ 368          /*********************************************************
+ 369          函  数：TouchKeyResgInit
+ 370          描  述:       触摸按键功能寄存器初始化
+ 371          输入值: 无
+ 372          输出值: 无
+ 373          返回值: 无
+ 374          **********************************************************/
+ 375          void TouchKeyResgInit()
+ 376          {
+ 377   1              TKCR &= ~0X08;                      //关闭触摸模块功能
+ 378   1              DelayTk_us(50);
+ 379   1              PortCx_Output_Low();
+ 380   1              DelayTk_us(50);
+ 381   1              PortCx_floating();              //将P07端口设置为CX口
+ 382   1              TKOSCCR = 0;                               //关闭跳频
+ 383   1              TKINT = 0x01 | 0x02 | 0x10;                //TMR使能 TMR中断使能 触摸中断使能
+ 384   1              IE1 |= 0x10;                      //打开触摸中断    2个中断都要打开
+ 385   1              TKCR = 0XE0;                          //，数字+模拟滤波，7*TCK滤波
+ 386   1              TKCHSEL = 0;
+ 387   1              tkAutoFrequenceModeSet();         //设定是否使能自动跳频模式和高灵敏度模式
+ 388   1              TouchScanChannel();                  //配置触摸通道
+ 389   1              DelayTk_us(20);
+ 390   1              TKCR |= 0x08;                   //使能触摸模块
+ 391   1      }
+ 392          
+ 393          /*********************************************************
+ 394          函  数：TouchKeySetToLow
+ 395          描  述:       将TK端口电荷清0
+ 396          输入值: 无
+ 397          输出值: 无
+ 398          返回值: 无
+ 399          **********************************************************/
+ 400          //void TouchKeySetToLow()
+ 401          //{
+ 402          //      PortCx_Output_Low();                                                   // 0 0 0 输出态 0，检测完之后，将CS电容口电荷�
+             -��0
+ 403          //      DelayTk_us(20);
+ 404          //      PortCx_floating();
+ 405          //      DelayTk_us(10);
+ 406          //
+ 407          //}
+ 408          
+ 409          /*********************************************************
+ 410          函  数：TouchScanChannel
+ 411          描  述:       获取触摸端口
+ 412          输入值: 无
+ 413          输出值: 无
+ 414          返回值: 无
+ 415          /**********************************************************/
+ 416          void TouchScanChannel(void)
+ 417          {
+ 418   1              unsigned char TKCHSELBUFF;
+ 419   1              //      TouchKeySetToLow();                                                      //相应的touch key作为输出0，放掉残留电荷
+ 420   1      
+ 421   1              TKCHSELBUFF = TKCHSEL;
+ 422   1              TKCHSELBUFF &= 0XE0;
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 8   
+
+ 423   1              TKCHSELBUFF |= CurrentChannel[CurrentChannelCnt];
+ 424   1              TKCHSEL = TKCHSELBUFF;
+ 425   1      
+ 426   1      }
+ 427          
+ 428          
+ 429          
+ 430          /*********************************************************
+ 431          函  数：TouchKeyRestart
+ 432          描  述:       触摸时钟选择同时启动触摸检测
+ 433          输入值: 无
+ 434          输出值: 无
+ 435          返回值: 无
+ 436          /**********************************************************/
+ 437          void TouchKeyRestart(void)
+ 438          {
+ 439   1              //Fsys = 16M，且Fctc < 8M ,至少需要3分频
+ 440   1              TouchScanChannel();                    //选择需要检测的触摸按键
+ 441   1      
+ 442   1      
+ 443   1              TKCR &= 0XFE;
+ 444   1      
+ 445   1              CTCCR = CTC_VREF | CTC_CounterMode;        // 时钟输入:  /计数模式/CTC参考电压0.4VDD
+ 446   1      
+ 447   1              switch (tkFreqGrade)
+ 448   1              {
+ 449   2                      case 0:
+ 450   2                              CTCCR |= CTC_CLKDIV5;          // 时钟输入:系统时钟\5
+ 451   2                              break;
+ 452   2                      case 1:
+ 453   2                              CTCCR |= CTC_CLKDIV7;          // 时钟输入:系统时钟\7
+ 454   2                              break;
+ 455   2                      case 2:
+ 456   2                              CTCCR |= CTC_CLKDIV9;          // 时钟输入:系统时钟\9
+ 457   2                              break;
+ 458   2                      default:
+ 459   2                              break;
+ 460   2      
+ 461   2              }
+ 462   1              TKCR |= 0X01;                                              //启动检测
+ 463   1      }
+ 464          
+ 465          
+ 466          
+ 467          /*********************************************************
+ 468          函  数：TouchKeyChkTmrOverChk
+ 469          描  述:       触摸按键检测溢出判断
+ 470          输入值: 无
+ 471          输出值: 无
+ 472          返回值: 无
+ 473          **********************************************************/
+ 474          
+ 475          void TouchKeyChkTmrOverChk()
+ 476          {
+ 477   1              //---------------------按键检测时间溢出判断------------
+ 478   1              if (Tktmrcount < S_tTkUserCfgStruct.WaveAbnormal)       // KeyWAve_Abnormal_Count=5000
+ 479   1              {
+ 480   2                      Tktmrcount++;
+ 481   2              }
+ 482   1              else
+ 483   1              {
+ 484   2                      Tktmrcount = 0;
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 9   
+
+ 485   2                      TouchKeyInit();
+ 486   2              }
+ 487   1      }
+ 488          
+ 489          
+ 490          
+ 491          
+ 492          /*********************************************************
+ 493          函  数：TouchKeyOneScan
+ 494          描  述:       触摸按键总判断，环境判断总函数
+ 495          输入值: 无
+ 496          输出值: 无
+ 497          返回值: 无
+ 498          **********************************************************/
+ 499          
+ 500          void  TouchKeyOneScan()
+ 501          {
+ 502   1              unsigned char i;
+ 503   1              if (tkstablecnt < (S_tTkUserCfgStruct.PoweronStable + 20))
+ 504   1              {
+ 505   2                      tkstablecnt++;
+ 506   2                      if (tkstablecnt > S_tTkUserCfgStruct.PoweronStable)                                     // 前S_tTkUserCfgStruct.PoweronStable次为无
+             -效，等待系统稳定。
+ 507   2                      {
+ 508   3                              tkFilterDataDeal_First();                                             //数据优化并处理
+ 509   3                              for (i = 0;i < S_tTkUserCfgStruct.CurrentChannelMax;i++)
+ 510   3                              {
+ 511   4                                      if (tkBaseLine[i] == 0)
+ 512   4                                      {
+ 513   5                                              tkBaseLine[i] = tkSensorDataBuff[i];
+ 514   5                                      }
+ 515   4                                      else
+ 516   4                                      {
+ 517   5                                              tkBaseLine[i] -= tkBaseLine[i] >> 1;
+ 518   5                                              tkBaseLine[i] += tkSensorDataBuff[i] >> 1;
+ 519   5                                              tkFilterCapData[i] = tkSensorDataBuff[i];
+ 520   5                                      }
+ 521   4                              }
+ 522   3                      }
+ 523   2                      TouchKeyRestart();                                                     // 设置扫描频率，启动触摸�
+             -�测
+ 524   2                      return;
+ 525   2              }
+ 526   1      
+ 527   1              tkFilterDataDeal_First();                                                    //数据优化并处理
+ 528   1      #if (C_HighReliabilityMode == 1)
+ 529   1              TouchHighMoiseChk();
+ 530   1      #endif
+ 531   1              tkFilterDataDeal_Double();
+ 532   1              TouchKeyRestart();                                                         //设置扫描频率，启动触摸
+             -检测
+ 533   1      
+ 534   1      
+ 535   1              if (F_tkBaseNeedUpdata == 0)                                                                   //检测是否需要更新baseline
+ 536   1              {
+ 537   2                      TK_GetDataRenovate();                                                                  //触摸按键按下松开，噪声等判断
+ 538   2              }
+ 539   1              else
+ 540   1              {
+ 541   2                      TK_BaseLineMultiUpdata();                                                  //基线复位处理
+ 542   2              }
+ 543   1      
+C51 COMPILER V9.59.0.0   TOUCHKEYCTC_V1_9                                                  08/29/2024 16:47:02 PAGE 10  
+
+ 544   1      }
+ 545          
+ 546          /*********************************************************
+ 547          函  数：TouchKeyScan
+ 548          描  述:       触摸检测
+ 549          输入值: 无
+ 550          输出值: 无
+ 551          返回值: 无
+ 552          **********************************************************/
+ 553          void TouchKeyScan(void)
+ 554          {
+ 555   1              TouchKeyChkTmrOverChk();
+ 556   1              if (F_tkDetectFinsh)             //所有按键一个周期检测结束
+ 557   1              {
+ 558   2                      F_tkDetectFinsh = 0;
+ 559   2                      TouchKeyOneScan();          //启动触摸判断和下一个周期检测
+ 560   2              }
+ 561   1      }
+ 562          
+ 563          
+ 564          //=============================================================
+ 565          //      InterruptTouch          扫描中断
+ 566          //=============================================================
+ 567          void InterruptTouch(void) interrupt 10
+ 568          {
+ 569   1              if (TKINT & 0x40)                     //触摸检测完成  实际测试：16M 中断处理时间20us
+ 570   1              {
+ 571   2                      TKINT &= ~0x40;
+ 572   2                      Provisional_Val = TKDRH;
+ 573   2                      Provisional_Val = Provisional_Val << 8;
+ 574   2                      Provisional_Val += TKDRL;                       //      采集到的触摸值
+ 575   2                      TouchKey_Service();
+ 576   2              }
+ 577   1              else                          //触摸溢出则重新扫描
+ 578   1              {
+ 579   2                      if (TKINT & 0x08)
+ 580   2                      {
+ 581   3                              TKINT &= ~0x08;
+ 582   3                              TouchKeyRestart();
+ 583   3                      }
+ 584   2              }
+ 585   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1076    ----
+   CONSTANT SIZE    =     66    ----
+   XDATA SIZE       =     51    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     31       9
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      3    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

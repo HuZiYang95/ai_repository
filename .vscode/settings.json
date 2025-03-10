@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "user_include.h": "c",
+        "bsp_aip8f3532_adc.h": "c",
+        "bsp_aip8f3208_adc.h": "c",
+        "bsp_aip8f3208_sfr.h": "c",
+        "bsp_aip8f3208_timer.h": "c",
+        "bsp_mcu_select.h": "c",
+        "hw_ntc.h": "c",
+        "bsp_aip8f3264_spi.h": "c",
+        "typedef.h": "c",
+        "bsp_touch_user.h": "c",
+        "icoretkdebug.h": "c"
+    }
+}

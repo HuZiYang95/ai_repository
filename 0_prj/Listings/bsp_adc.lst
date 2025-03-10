@@ -1,0 +1,223 @@
+C51 COMPILER V9.59.0.0   BSP_ADC                                                           08/29/2024 16:46:57 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BSP_ADC
+OBJECT MODULE PLACED IN .\Objects\bsp_adc.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\bsp_adc.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bsp;..\2_ha
+                    -l;..\3_app;..\4_user) DEBUG PRINT(.\Listings\bsp_adc.lst) OBJECT(.\Objects\bsp_adc.obj)
+
+line level    source
+
+   1          /**
+   2           * @file bsp_adc.c
+   3           * @author your name (you@domain.com)
+   4           * @brief 中微爱芯 & aip8f3264
+   5           * @brief RD8F12AE2207A / RD8F04DS1407A / RD8F04DS1007A
+   6           * @version 0.1
+   7           * @date 2024-01-04
+   8           *
+   9           * @copyright Copyright (c) 2024
+  10           *
+  11           */
+  12          #include "bsp_adc.h"
+  13          #include "bsp_sfr.h"
+  14          #include "typedef.h"
+  15          
+  16           /**
+  17            * @brief adc初始化
+  18            *
+  19            * @param AdcChan     adc通道
+  20            * @param AdcFreqDiv  adc转换分频
+  21            * @param AdcVref     adc基准电压
+  22            *
+  23            * @note 无
+  24            */
+  25          void bsp_adc_init(TYPE_ENUM_ADC_CHAN AdcChan, TYPE_ENUM_ADC_FREQ_DIV AdcFreqDiv, TYPE_ENUM_ADC_ADC_VREF Ad
+             -cVref)
+  26          {
+  27   1          ADCCRH = 0;
+  28   1          ADCCRL = 0;
+  29   1      
+  30   1          // 1 - adc参考电压
+  31   1          bsp_adc_switch_vref(AdcVref);
+  32   1          // 2 - adc分频
+  33   1          bsp_adc_switch_freq_div(AdcFreqDiv);
+  34   1          // 3 - adc默认左对齐，结果存放(ADCDRH[7:0],ADCDRL[7:4])
+  35   1          ADCCRH &= ~0x04;
+  36   1          // 4 - adc通道选择
+  37   1          bsp_adc_switch_channel(AdcChan);
+  38   1          // 5 - adc模块使能
+  39   1          ADCCRL |= 0x80;
+  40   1      }
+  41          
+  42          
+  43          /**
+  44           * @brief adc转换并返回结果
+  45           *
+  46           * @return unsigned int  12位ad值
+  47           *
+  48           * @note 无
+  49           */
+  50          unsigned int bsp_adc_get_raw(void)
+  51          {
+  52   1          unsigned int i = 0;
+  53   1          // 1 - adc启动转换
+C51 COMPILER V9.59.0.0   BSP_ADC                                                           08/29/2024 16:46:57 PAGE 2   
+
+  54   1          ADCCRL |= 0x40;
+  55   1          // 2 - adc等待转换结束
+  56   1          while (!(ADCCRH & 0x40))
+  57   1          {
+  58   2              if (++i >= 500) return 0xFFFF;
+  59   2          }
+  60   1          // 3 - adc按配置位数取出转换结果
+  61   1          i = ((unsigned int)ADCDRH << 8) | ADCDRL;
+  62   1          i >>= 4;
+  63   1      
+  64   1          // 4 - adc返回采样结果
+  65   1          return i;
+  66   1      }
+  67          
+  68          
+  69          /**
+  70           * @brief adc切换通道
+  71           *
+  72           * @param adc_chan  adc通道
+  73           *
+  74           * @note  注意多通道采集时，应当在当前通道采集完成后，切换通道，等下一次采
+             -集时直接开始；不建议切换通道后立刻开始adc采集
+  75           */
+  76          void bsp_adc_switch_channel(TYPE_ENUM_ADC_CHAN AdcChan)
+  77          {
+  78   1          unsigned char i = 0;
+  79   1      
+  80   1          i = ADCCRL;
+  81   1          i &= 0xE0;
+  82   1          i |= (unsigned char)(AdcChan & 0x1F);
+  83   1          ADCCRL = i;
+  84   1      
+  85   1          switch (AdcChan)
+  86   1          {
+  87   2              case ADC_CHAN_0:    P4IO &= U8_NBIT5;    ADAN4 |= U8_BIT5;    break;
+  88   2              case ADC_CHAN_1:    P4IO &= U8_NBIT4;    ADAN4 |= U8_BIT4;    break;
+  89   2              case ADC_CHAN_2:    P4IO &= U8_NBIT3;    ADAN4 |= U8_BIT3;    break;
+  90   2              case ADC_CHAN_3:    P4IO &= U8_NBIT2;    ADAN4 |= U8_BIT2;    break;
+  91   2              case ADC_CHAN_4:    P4IO &= U8_NBIT1;    ADAN4 |= U8_BIT1;    break;
+  92   2              case ADC_CHAN_5:    P4IO &= U8_NBIT0;    ADAN4 |= U8_BIT0;    break;
+  93   2              case ADC_CHAN_6:    P3IO &= U8_NBIT7;    ADAN3 |= U8_BIT7;    break;
+  94   2              case ADC_CHAN_7:    P3IO &= U8_NBIT6;    ADAN3 |= U8_BIT6;    break;
+  95   2              case ADC_CHAN_8:    P3IO &= U8_NBIT5;    ADAN3 |= U8_BIT5;    break;
+  96   2              case ADC_CHAN_9:    P3IO &= U8_NBIT4;    ADAN3 |= U8_BIT4;    break;
+  97   2              case ADC_CHAN_10:   P1IO &= U8_NBIT4;    ADAN1 |= U8_BIT4;    break;
+  98   2              case ADC_CHAN_11:   P1IO &= U8_NBIT5;    ADAN1 |= U8_BIT5;    break;
+  99   2              case ADC_CHAN_12:   P1IO &= U8_NBIT6;    ADAN1 |= U8_BIT6;    break;
+ 100   2              case ADC_CHAN_13:   P1IO &= U8_NBIT7;    ADAN1 |= U8_BIT7;    break;
+ 101   2              case ADC_CHAN_14:   P2IO &= U8_NBIT0;    ADAN2 |= U8_BIT0;    break;
+ 102   2              case ADC_CHAN_15:   P2IO &= U8_NBIT1;    ADAN2 |= U8_BIT1;    break;
+ 103   2              case ADC_CHAN_16:   P2IO &= U8_NBIT2;    ADAN2 |= U8_BIT2;    break;
+ 104   2              case ADC_CHAN_17:   P2IO &= U8_NBIT3;    ADAN2 |= U8_BIT3;    break;
+ 105   2              case ADC_CHAN_18:   P2IO &= U8_NBIT4;    ADAN2 |= U8_BIT4;    break;
+ 106   2              case ADC_CHAN_19:   P2IO &= U8_NBIT5;    ADAN2 |= U8_BIT5;    break;
+ 107   2              case ADC_CHAN_20:   P2IO &= U8_NBIT6;    ADAN2 |= U8_BIT6;    break;
+ 108   2              case ADC_CHAN_21:   P2IO &= U8_NBIT7;    ADAN2 |= U8_BIT7;    break;
+ 109   2              case ADC_CHAN_22:   P0IO &= U8_NBIT0;    ADAN0 |= U8_BIT0;    break;
+ 110   2              case ADC_CHAN_23:   P0IO &= U8_NBIT1;    ADAN0 |= U8_BIT1;    break;
+ 111   2              case ADC_CHAN_24:   P0IO &= U8_NBIT2;    ADAN0 |= U8_BIT2;    break;
+ 112   2              case ADC_CHAN_25:   P0IO &= U8_NBIT3;    ADAN0 |= U8_BIT3;    break;
+ 113   2              case ADC_CHAN_26:   P0IO &= U8_NBIT4;    ADAN0 |= U8_BIT4;    break;
+ 114   2              case ADC_CHAN_27:   P0IO &= U8_NBIT5;    ADAN0 |= U8_BIT5;    break;
+C51 COMPILER V9.59.0.0   BSP_ADC                                                           08/29/2024 16:46:57 PAGE 3   
+
+ 115   2              case ADC_CHAN_28:   P0IO &= U8_NBIT6;    ADAN0 |= U8_BIT6;    break;
+ 116   2              default: break;
+ 117   2          }
+ 118   1          NOP();NOP();NOP();NOP();NOP();NOP();NOP();NOP();
+ 119   1      }
+ 120          
+ 121          
+ 122          /**
+ 123           * @brief adc清除通道，端口复位GPIO
+ 124           *
+ 125           * @param AdcChan AD通道
+ 126           */
+ 127          void bsp_adc_clr_channel(TYPE_ENUM_ADC_CHAN AdcChan)
+ 128          {
+ 129   1          switch (AdcChan)
+ 130   1          {
+ 131   2              case ADC_CHAN_0:    P4IO |= U8_BIT5;    ADAN4 &= U8_NBIT5;    break;
+ 132   2              case ADC_CHAN_1:    P4IO |= U8_BIT4;    ADAN4 &= U8_NBIT4;    break;
+ 133   2              case ADC_CHAN_2:    P4IO |= U8_BIT3;    ADAN4 &= U8_NBIT3;    break;
+ 134   2              case ADC_CHAN_3:    P4IO |= U8_BIT2;    ADAN4 &= U8_NBIT2;    break;
+ 135   2              case ADC_CHAN_4:    P4IO |= U8_BIT1;    ADAN4 &= U8_NBIT1;    break;
+ 136   2              case ADC_CHAN_5:    P4IO |= U8_BIT0;    ADAN4 &= U8_NBIT0;    break;
+ 137   2              case ADC_CHAN_6:    P3IO |= U8_BIT7;    ADAN3 &= U8_NBIT7;    break;
+ 138   2              case ADC_CHAN_7:    P3IO |= U8_BIT6;    ADAN3 &= U8_NBIT6;    break;
+ 139   2              case ADC_CHAN_8:    P3IO |= U8_BIT5;    ADAN3 &= U8_NBIT5;    break;
+ 140   2              case ADC_CHAN_9:    P3IO |= U8_BIT4;    ADAN3 &= U8_NBIT4;    break;
+ 141   2              case ADC_CHAN_10:   P1IO |= U8_BIT4;    ADAN1 &= U8_NBIT4;    break;
+ 142   2              case ADC_CHAN_11:   P1IO |= U8_BIT5;    ADAN1 &= U8_NBIT5;    break;
+ 143   2              case ADC_CHAN_12:   P1IO |= U8_BIT6;    ADAN1 &= U8_NBIT6;    break;
+ 144   2              case ADC_CHAN_13:   P1IO |= U8_BIT7;    ADAN1 &= U8_NBIT7;    break;
+ 145   2              case ADC_CHAN_14:   P2IO |= U8_BIT0;    ADAN2 &= U8_NBIT0;    break;
+ 146   2              case ADC_CHAN_15:   P2IO |= U8_BIT1;    ADAN2 &= U8_NBIT1;    break;
+ 147   2              case ADC_CHAN_16:   P2IO |= U8_BIT2;    ADAN2 &= U8_NBIT2;    break;
+ 148   2              case ADC_CHAN_17:   P2IO |= U8_BIT3;    ADAN2 &= U8_NBIT3;    break;
+ 149   2              case ADC_CHAN_18:   P2IO |= U8_BIT4;    ADAN2 &= U8_NBIT4;    break;
+ 150   2              case ADC_CHAN_19:   P2IO |= U8_BIT5;    ADAN2 &= U8_NBIT5;    break;
+ 151   2              case ADC_CHAN_20:   P2IO |= U8_BIT6;    ADAN2 &= U8_NBIT6;    break;
+ 152   2              case ADC_CHAN_21:   P2IO |= U8_BIT7;    ADAN2 &= U8_NBIT7;    break;
+ 153   2              case ADC_CHAN_22:   P0IO |= U8_BIT0;    ADAN0 &= U8_NBIT0;    break;
+ 154   2              case ADC_CHAN_23:   P0IO |= U8_BIT1;    ADAN0 &= U8_NBIT1;    break;
+ 155   2              case ADC_CHAN_24:   P0IO |= U8_BIT2;    ADAN0 &= U8_NBIT2;    break;
+ 156   2              case ADC_CHAN_25:   P0IO |= U8_BIT3;    ADAN0 &= U8_NBIT3;    break;
+ 157   2              case ADC_CHAN_26:   P0IO |= U8_BIT4;    ADAN0 &= U8_NBIT4;    break;
+ 158   2              case ADC_CHAN_27:   P0IO |= U8_BIT5;    ADAN0 &= U8_NBIT5;    break;
+ 159   2              case ADC_CHAN_28:   P0IO |= U8_BIT6;    ADAN0 &= U8_NBIT6;    break;
+ 160   2              default: break;
+ 161   2          }
+ 162   1      }
+ 163          
+ 164          
+ 165          /**
+ 166           * @brief adc切换基准电压
+ 167           *
+ 168           * @param adc_vref adc基准电压
+ 169           *
+ 170           * @note 无
+ 171           */
+ 172          void bsp_adc_switch_vref(TYPE_ENUM_ADC_ADC_VREF AdcVref)
+ 173          {
+ 174   1          ADCCRL |= (unsigned char)((AdcVref & 0x08) << 2);  // 2023-5-6
+ 175   1          ADCCRH |= (unsigned char)((AdcVref & 0x03) << 4);
+ 176   1      }
+C51 COMPILER V9.59.0.0   BSP_ADC                                                           08/29/2024 16:46:57 PAGE 4   
+
+ 177          
+ 178          
+ 179          /**
+ 180           * @brief adc切换转换分频
+ 181           *
+ 182           * @param adc_freq_div adc转换分频
+ 183           */
+ 184          void bsp_adc_switch_freq_div(TYPE_ENUM_ADC_FREQ_DIV AdcFreqDiv)
+ 185          {
+ 186   1          ADCCRH |= (unsigned char)(AdcFreqDiv & 0x03);
+ 187   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    876    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----       2
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

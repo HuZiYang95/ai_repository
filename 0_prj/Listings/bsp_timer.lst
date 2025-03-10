@@ -1,0 +1,1118 @@
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BSP_TIMER
+OBJECT MODULE PLACED IN .\Objects\bsp_timer.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\bsp_timer.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bsp;..\2_
+                    -hal;..\3_app;..\4_user) DEBUG PRINT(.\Listings\bsp_timer.lst) OBJECT(.\Objects\bsp_timer.obj)
+
+line level    source
+
+   1          /**
+   2           * @file bsp_timer.c
+   3           * @author your name (you@domain.com)
+   4           * @brief 中微爱芯 & aip8f3264
+   5           * @brief RD8F12AE2207A / RD8F04DS1407A / RD8F04DS1007A
+   6           * @version 0.1
+   7           * @date 2024-01-04
+   8           *
+   9           * @copyright Copyright (c) 2024
+  10           *
+  11           */
+  12          #include "bsp_timer.h"
+  13          #include "bsp_sfr.h"
+  14          
+  15          
+  16           /**
+  17            * @brief 定时器0中断服务函数，执行系统1ms定时
+  18            *
+  19            */
+  20          volatile unsigned int SysTick = 0;
+  21          volatile unsigned int SysTickTemp = 0;
+  22          volatile unsigned char SysTickFlag = 0;
+  23          /**
+  24           * @brief 定时器1 - 中断服务函数，执行1ms-tick定时
+  25           *
+  26           */
+  27          void timer1_interrupt_func(void) interrupt 12
+  28          {
+  29   1          T1CR1 &= 0xFB;      // 清除中断标志位
+  30   1          SysTick++;
+  31   1          if (0 == SysTickFlag)
+  32   1          {
+  33   2              SysTickTemp = SysTick;
+  34   2          }
+  35   1      }
+  36          
+  37          
+  38          /**
+  39           * @brief Get the tick object
+  40           *
+  41           * @return unsigned int
+  42           */
+  43          unsigned int get_tick(void)
+  44          {
+  45   1          unsigned int Temp;
+  46   1          SysTickFlag = 1;
+  47   1          Temp = SysTickTemp;
+  48   1          SysTickFlag = 0;
+  49   1          return Temp;
+  50   1      }
+  51          
+  52          
+  53          /**
+  54           * @brief 判断定时时间是否达到
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 2   
+
+  55           *
+  56           * @param pTaskTick 任务定时变量指针
+  57           * @param SetTimeTick 目标定时时刻
+  58           * @return TYPE_ENUM_BOOL 是否达到设定时刻
+  59           */
+  60          TYPE_ENUM_BOOL is_systick_expired(unsigned int *pTaskTick, unsigned int SetTimeTick)
+  61          {
+  62   1          if ((get_tick() - *pTaskTick) >= SetTimeTick)
+  63   1          {
+  64   2              *pTaskTick += SetTimeTick;
+  65   2              return TRUE;
+  66   2          }
+  67   1          return FALSE;
+  68   1      }
+  69          
+  70          
+  71          /**
+  72           * @brief 系统tick初始化，占用timer0
+  73           *
+  74           */
+  75          void systick_init(void)
+  76          {
+  77   1          if (SysClock == 16)
+  78   1          {
+  79   2              bsp_timer1_init(TIMER_FREQ_DIV_64, TIMER_INT_PRIORITY_0, 249);
+  80   2          }
+  81   1          else if (SysClock == 8)
+  82   1          {
+  83   2              bsp_timer1_init(TIMER_FREQ_DIV_64, TIMER_INT_PRIORITY_0, 124);
+  84   2          }
+  85   1          else if (SysClock == 4)
+  86   1          {
+  87   2              bsp_timer1_init(TIMER_FREQ_DIV_8, TIMER_INT_PRIORITY_0, 499);
+  88   2          }
+  89   1      }
+  90          
+  91          
+  92          /**
+  93           * @brief 上电延时函数
+  94           *
+  95           */
+  96          void bsp_power_on_delay(void)
+  97          {
+  98   1          unsigned int i = 10000;
+  99   1          while (--i) WDTCR |= 0x20;
+ 100   1      }
+ 101          
+ 102          
+ 103          /**
+ 104           * @brief 系统时钟初始化
+ 105           *
+ 106           * @param sys_clk 系统时钟  { SYS_CLK_HIRC_16M, SYS_CLK_HIRC_8M, SYS_CLK_HIRC_4M, SYS_CLK_HXT_16M, SYS
+             -_CLK_HXT_8M, SYS_CLK_HXT_4M }
+ 107           */
+ 108          unsigned char SysClock = 0;
+ 109          TYPE_ENUM_STATUS bsp_sysclock_init(TYPE_ENUM_SYS_CLK SysClockSel)
+ 110          {
+ 111   1          unsigned int i = 0;
+ 112   1          TYPE_ENUM_STATUS Status = SUCCESS;
+ 113   1      
+ 114   1          if ((SysClockSel == SYS_CLK_HXT_16M) || (SysClockSel == SYS_CLK_HXT_8M) || (SysClockSel == SYS_CLK_HXT
+             -_4M))
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 3   
+
+ 115   1          {
+ 116   2              // 3264上电默认高速内振使能并作为时钟源
+ 117   2      
+ 118   2              // 使能外振并切换为主频
+ 119   2              OSCCR1 = 0x80;
+ 120   2              OSCTS = 0x00;
+ 121   2              OSCCR |= 0x20;
+ 122   2              while (!(OSCCR1 & 0x01))
+ 123   2              {
+ 124   3                  if (++i >= 30000)
+ 125   3                  {
+ 126   4                      Status = ERROR;
+ 127   4                      OSCCR = 0x10;   // 外振起振超时，关闭
+ 128   4                      break;
+ 129   4                  }
+ 130   3              }
+ 131   2      
+ 132   2              if (ERROR == Status)    // 外振起振失败，切换同频率内振
+ 133   2              {
+ 134   3                  if (SysClockSel == SYS_CLK_HXT_16M) SysClockSel = SYS_CLK_HIRC_16M;
+ 135   3                  else if (SysClockSel == SYS_CLK_HXT_8M) SysClockSel = SYS_CLK_HIRC_8M;
+ 136   3                  else if (SysClockSel == SYS_CLK_HXT_4M) SysClockSel = SYS_CLK_HIRC_4M;
+ 137   3              }
+ 138   2              else
+ 139   2              {
+ 140   3                  KEYCODE = 0x3C;
+ 141   3                  KEYCODE = 0x02;
+ 142   3                  KEYCODE = 0xA0;
+ 143   3                  CKCR = 0x01;
+ 144   3                  KEYCODE = 0x00;
+ 145   3                  if (SysClockSel == SYS_CLK_HXT_16M) SysClock = 16;
+ 146   3                  else if (SysClockSel == SYS_CLK_HXT_8M) SysClock = 8;
+ 147   3                  else if (SysClockSel == SYS_CLK_HXT_4M) SysClock = 4;
+ 148   3                  return SUCCESS;
+ 149   3              }
+ 150   2          }
+ 151   1      
+ 152   1          if (SysClockSel == SYS_CLK_HIRC_16M)
+ 153   1          {
+ 154   2              OSCCR = 0x10;
+ 155   2              SysClock = 16;
+ 156   2          }
+ 157   1          else if (SysClockSel == SYS_CLK_HIRC_8M)
+ 158   1          {
+ 159   2              OSCCR = 0x14;
+ 160   2              SysClock = 8;
+ 161   2          }
+ 162   1          else if (SysClockSel == SYS_CLK_HIRC_4M)
+ 163   1          {
+ 164   2              OSCCR = 0x15;
+ 165   2              SysClock = 4;
+ 166   2          }
+ 167   1          return Status;
+ 168   1      }
+ 169          
+ 170          
+ 171          /**
+ 172           * @brief 定时器0初始化为定时器模式
+ 173           *
+ 174           * @param TimerFreq            定时器分频
+ 175           * @param IntPriority     定时中断优先级
+ 176           * @param Period              定时周期 - 16bit
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 4   
+
+ 177           *
+ 178           * @note 定时中断周期计算：(Period + 1) * TimerFreq / SysClock * 1000000 us
+ 179           * @example 16M内振，定时中断125us，最低优先级 : bsp_timer0_init (TIMER_FREQ_DIV_8, TIMER_INT
+             -_PRIORITY_0, 249);
+ 180           * @example 8M内振，定时中断125us，最低优先级 : bsp_timer0_init (TIMER_FREQ_DIV_4, TIMER_INT_
+             -PRIORITY_0, 249);
+ 181           */
+ 182          void bsp_timer0_init(TYPE_ENUM_TIMER_FREQ TimerFreq, TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned in
+             -t Period)
+ 183          {
+ 184   1          T0CR1 = 0;
+ 185   1          T0CR2 = 0;
+ 186   1          // 1 - timer模式选择
+ 187   1          T0CR1 |= (unsigned char)((0x00 & 0x03) << 4);
+ 188   1          // 2 - timer分频选择
+ 189   1          T0CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 190   1          // 3 - 配置定时周期
+ 191   1          T0DR1L = (unsigned char)(Period & 0x00FF);
+ 192   1          T0DR1H = (unsigned char)(Period >> 8);
+ 193   1          // 4 - 配置中断优先级并使能中断
+ 194   1          switch (IntPriority)
+ 195   1          {
+ 196   2              case TIMER_INT_PRIORITY_0:    IP0 &= ~0x20;   IP1 &= ~0x20;   break;
+ 197   2              case TIMER_INT_PRIORITY_1:    IP0 |= 0x20;    IP1 &= ~0x20;   break;
+ 198   2              case TIMER_INT_PRIORITY_2:    IP0 &= ~0x20;   IP1 |= 0x20;    break;
+ 199   2              case TIMER_INT_PRIORITY_3:    IP0 |= 0x20;    IP1 |= 0x20;    break;
+ 200   2              default: break;
+ 201   2          }
+ 202   1          IE1 |= 0x20;
+ 203   1          T0CR1 &= 0xFB;
+ 204   1          T0CR1 |= 0x80;
+ 205   1      }
+ 206          
+ 207          
+ 208          /**
+ 209           * @brief 快速初始化定时器0，定时单位us
+ 210           *
+ 211           * @param IntPriority   定时中断优先级
+ 212           * @param usCnt             定时值，范围 0~32767 单位us
+ 213           */
+ 214          void bsp_timer0_init_us(TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned int usCnt)
+ 215          {
+ 216   1          if (usCnt > 32767) return;
+ 217   1      
+ 218   1          if (SysClock == 16)
+ 219   1          {
+ 220   2              bsp_timer0_init(TIMER_FREQ_DIV_8, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 221   2          }
+ 222   1          else if (SysClock == 8)
+ 223   1          {
+ 224   2              bsp_timer0_init(TIMER_FREQ_DIV_4, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 225   2          }
+ 226   1          else if (SysClock == 4)
+ 227   1          {
+ 228   2              bsp_timer0_init(TIMER_FREQ_DIV_2, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 229   2          }
+ 230   1      }
+ 231          
+ 232          
+ 233          /**
+ 234           * @brief 定时器0初始化为pwm模式
+ 235           *
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 5   
+
+ 236           * @param TimerFreq    定时器分频
+ 237           * @param PwmDir     pwm极性
+ 238           * @param PwmChan    pwm端口
+ 239           * @param Period      pwm周期计数器     16bit，范围 0~65535， 计算公式：(period+1) * freq_di
+             -v / sys_clk * 1000000 us
+ 240           * @param Duty        pwm占空比计数器   16bit，范围 0~65535， 计算公式：(duty+1) * freq_div
+             - / sys_clk * 1000000 us
+ 241           *
+ 242           * @note pwm周期计算：(period+1) * freq_div / sys_clk * 1000000 us
+ 243           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+ 244           * @note duty为0，则pwm口恒定输出低电平（极性为正）；duty > period，则pwm口恒定输�
+             -��高电平（极性为正）
+ 245           *
+ 246           * @example 16M内振，pwm频率20K，即周期50us，周期计算 : (199 + 1) * 4 / 16M * 1000000 = 50us
+             -   即 period = 199 , freq_div = TIMER_FREQ_DIV_4
+ 247           * @example 若需要50%占空比，则设置 duty 为 period 一半
+ 248           */
+ 249          void bsp_pwm0_init(TYPE_ENUM_TIMER_FREQ TimerFreq, TYPE_ENUM_TIMER_PWM_DIR PwmDir, TYPE_ENUM_TIMER_PWM_CHA
+             -N PwmChan, unsigned int Period, unsigned int Duty)
+ 250          {
+ 251   1          T0CR1 = 0;
+ 252   1          T0CR2 = 0;
+ 253   1          // 1 - timer模式选择
+ 254   1          T0CR1 |= (unsigned char)((0x03 & 0x03) << 4);
+ 255   1          // 2 - timer分频选择
+ 256   1          T0CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 257   1          // 3 - 配置gpio、pwm极性
+ 258   1          if (PwmChan == TIMER_PWM_0_P51)
+ 259   1          {
+ 260   2              LCMCR0 &= U8_NBIT3;
+ 261   2              P5 |= U8_BIT1;
+ 262   2              P5IO |= U8_BIT1;
+ 263   2          }
+ 264   1          else if (PwmChan == TIMER_PWM_0_P22)
+ 265   1          {
+ 266   2              LCMCR0 |= 0x08;
+ 267   2              P2 |= 0x04;
+ 268   2              P2IO |= 0x04;
+ 269   2          }
+ 270   1          T0CR2 |= 0x01;
+ 271   1          T0CR2 |= (unsigned char)((PwmDir & 0x01) << 2);
+ 272   1          // 4 - 配置pwm周期及占空比
+ 273   1          T0DR1L = (unsigned char)(Period & 0x00FF);
+ 274   1          T0DR1H = (unsigned char)(Period >> 8);
+ 275   1          T0DR2H = (unsigned char)(Duty >> 8);
+ 276   1          T0DR2L = (unsigned char)Duty;
+ 277   1      }
+ 278          
+ 279          
+ 280          /**
+ 281           * @brief 定时器0配置pwm周期及占空比
+ 282           *
+ 283           * @param period      pwm周期计数器     16bit，范围 0~65535， 计算公式：(period+1) * freq_di
+             -v / sys_clk * 1000000 us
+ 284           * @param duty        pwm占空比计数器   16bit，范围 0~65535， 计算公式：(duty+1) * freq_div
+             - / sys_clk * 1000000 us
+ 285           *
+ 286           * @note pwm周期计算：(period+1) * freq_div / sys_clk * 1000000 us
+ 287           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+ 288           * @note duty为0，则pwm口恒定输出低电平（极性为正）；duty > period，则pwm口恒定输�
+             -��高电平（极性为正）
+ 289           *
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 6   
+
+ 290           * @example 16M内振，pwm频率20K，即周期50us，周期计算 : (199 + 1) * 4 / 16M * 1000000 = 50us
+             -   即 period = 199 , freq_div = TIMER_FREQ_DIV_4
+ 291           * @example 若需要50%占空比，则设置 duty 为 period 一半
+ 292           */
+ 293          void bsp_pwm0_set(unsigned int Period, unsigned int Duty)
+ 294          {
+ 295   1          T0DR1L = (unsigned char)(Period & 0x00FF);
+ 296   1          T0DR1H = (unsigned char)(Period >> 8);
+ 297   1          T0DR2H = (unsigned char)(Duty >> 8);
+ 298   1          T0DR2L = (unsigned char)Duty;
+ 299   1      }
+ 300          
+ 301          
+ 302          /**
+ 303           * @brief 定时器0开关pwm
+ 304           *
+ 305           * @param Switch    pwm开关 { DISABLE, ENABLE }
+ 306           */
+ 307          void bsp_pwm0_switch(TYPE_ENUM_SWITCH Switch)
+ 308          {
+ 309   1          T0CR1 |= U8_BIT0;
+ 310   1          if (Switch == ENABLE) T0CR1 |= 0x80;
+ 311   1          else T0CR1 &= ~0x80;
+ 312   1      }
+ 313          
+ 314          
+ 315          /**
+ 316           * @brief 定时器1初始化为定时器模式
+ 317           *
+ 318           * @param TimerFreq           定时器分频
+ 319           * @param IntPriority         定时中断优先级
+ 320           * @param Period              定时周期 - 16bit
+ 321           *
+ 322           * @note 定时中断周期计算：(Period + 1) * TimerFreq / SysClock * 1000000 us
+ 323           * @example 16M内振，定时中断125us，最低优先级 : bsp_timer1_init (TIMER_FREQ_DIV_8, TIMER_INT
+             -_PRIORITY_0, 249);
+ 324           * @example 8M内振，定时中断125us，最低优先级 : bsp_timer1_init (TIMER_FREQ_DIV_4, TIMER_INT_
+             -PRIORITY_0, 249);
+ 325           */
+ 326          void bsp_timer1_init(TYPE_ENUM_TIMER_FREQ TimerFreq, TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned in
+             -t Period)
+ 327          {
+ 328   1          T1CR1 = 0;
+ 329   1          T1CR2 = 0;
+ 330   1          // 1 - timer模式选择
+ 331   1          T1CR1 |= (unsigned char)((0x00 & 0x03) << 4);
+ 332   1          // 2 - timer分频选择
+ 333   1          T1CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 334   1          // 3 - 配置定时周期
+ 335   1          T1DR1L = (unsigned char)(Period & 0x00FF);
+ 336   1          T1DR1H = (unsigned char)(Period >> 8);
+ 337   1          // 4 - 配置中断优先级并使能中断
+ 338   1          switch (IntPriority)
+ 339   1          {
+ 340   2              case TIMER_INT_PRIORITY_0:    IP0 &= ~0x01;   IP1 &= ~0x01;   break;
+ 341   2              case TIMER_INT_PRIORITY_1:    IP0 |= 0x01;    IP1 &= ~0x01;   break;
+ 342   2              case TIMER_INT_PRIORITY_2:    IP0 &= ~0x01;   IP1 |= 0x01;    break;
+ 343   2              case TIMER_INT_PRIORITY_3:    IP0 |= 0x01;    IP1 |= 0x01;    break;
+ 344   2              default: break;
+ 345   2          }
+ 346   1          IE1 |= 0x40;
+ 347   1          T1CR1 &= 0xFB;
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 7   
+
+ 348   1          T1CR1 |= 0x80;
+ 349   1      }
+ 350          
+ 351          
+ 352          /**
+ 353           * @brief 快速初始化定时器1，定时单位us
+ 354           *
+ 355           * @param IntPriority   定时中断优先级
+ 356           * @param usCnt             定时值，范围 0~32767 单位us
+ 357           */
+ 358          void bsp_timer1_init_us(TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned int usCnt)
+ 359          {
+ 360   1          if (usCnt > 32767) return;
+ 361   1      
+ 362   1          if (SysClock == 16)
+ 363   1          {
+ 364   2              bsp_timer1_init(TIMER_FREQ_DIV_8, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 365   2          }
+ 366   1          else if (SysClock == 8)
+ 367   1          {
+ 368   2              bsp_timer1_init(TIMER_FREQ_DIV_4, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 369   2          }
+ 370   1          else if (SysClock == 4)
+ 371   1          {
+ 372   2              bsp_timer1_init(TIMER_FREQ_DIV_2, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 373   2          }
+ 374   1      }
+ 375          
+ 376          
+ 377          /**
+ 378           * @brief 定时器1初始化为pwm模式
+ 379           *
+ 380           * @param freq_div    定时器分频        { TIMER_FREQ_DIV_1, TIMER_FREQ_DIV_2, TIMER_FREQ_DIV_4, TIMER
+             -_FREQ_DIV_8, TIMER_FREQ_DIV_64, TIMER_FREQ_DIV_512, TIMER_FREQ_DIV_2048, TIMER_FREQ_TCN }
+ 381           * @param pwm_dir     pwm极性           { TIMER_PWM_DIR_POSITIVE, TIMER_PWM_DIR_NEGATIVE }
+ 382           * @param pwm_gpio    pwm端口           { TIMER_PWM_1_P50, TIMER_PWM_1_P01 }
+ 383           * @param period      pwm周期计数器     16bit，范围 0~65535， 计算公式：(period+1) * freq_di
+             -v / sys_clk * 1000000 us
+ 384           * @param duty        pwm占空比计数器   16bit，范围 0~65535， 计算公式：(duty+1) * freq_div
+             - / sys_clk * 1000000 us
+ 385           *
+ 386           * @note pwm周期计算：(period+1) * freq_div / sys_clk * 1000000 us
+ 387           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+ 388           * @note duty为0，则pwm口恒定输出低电平（极性为正）；duty > period，则pwm口恒定输�
+             -��高电平（极性为正）
+ 389           *
+ 390           * @example 16M内振，pwm频率20K，即周期50us，周期计算 : (199 + 1) * 4 / 16M * 1000000 = 50us
+             -   即 period = 199 , freq_div = TIMER_FREQ_DIV_4
+ 391           * @example 若需要50%占空比，则设置 duty 为 period 一半
+ 392           */
+ 393          void bsp_pwm1_init(TYPE_ENUM_TIMER_FREQ TimerFreq, TYPE_ENUM_TIMER_PWM_DIR PwmDir, TYPE_ENUM_TIMER_PWM_CHA
+             -N PwmGpio, unsigned int Period, unsigned int Duty)
+ 394          {
+ 395   1          T1CR1 = 0;
+ 396   1          T1CR2 = 0;
+ 397   1          // 1 - timer模式选择
+ 398   1          T1CR1 |= (unsigned char)((0x03 & 0x03) << 4);
+ 399   1          // 2 - timer分频选择
+ 400   1          T1CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 401   1          // 3 - 配置gpio、pwm极性
+ 402   1          if (PwmGpio == TIMER_PWM_1_P52)
+ 403   1          {
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 8   
+
+ 404   2              LCMCR0 &= U8_NBIT2;
+ 405   2              P5 |= U8_BIT2;
+ 406   2              P5IO |= U8_BIT2;
+ 407   2          }
+ 408   1          else if (PwmGpio == TIMER_PWM_1_P23)
+ 409   1          {
+ 410   2              LCMCR0 |= U8_BIT2;
+ 411   2              P2 |= U8_BIT3;
+ 412   2              P2IO |= U8_BIT3;
+ 413   2          }
+ 414   1          T1CR2 |= 0x01;
+ 415   1          T1CR2 |= (unsigned char)((PwmDir & 0x01) << 2);
+ 416   1          // 4 - 配置pwm周期及占空比
+ 417   1          T1DR1L = (unsigned char)(Period & 0x00FF);
+ 418   1          T1DR1H = (unsigned char)(Period >> 8);
+ 419   1          T1DR2H = (unsigned char)(Duty >> 8);
+ 420   1          T1DR2L = (unsigned char)Duty;
+ 421   1      }
+ 422          
+ 423          
+ 424          /**
+ 425           * @brief 定时器1配置pwm周期及占空比
+ 426           *
+ 427           * @param period      pwm周期计数器     16bit，范围 0~65535， 计算公式：(period+1) * freq_di
+             -v / sys_clk * 1000000 us
+ 428           * @param duty        pwm占空比计数器   16bit，范围 0~65535， 计算公式：(duty+1) * freq_div
+             - / sys_clk * 1000000 us
+ 429           *
+ 430           * @note pwm周期计算：(period+1) * freq_div / sys_clk * 1000000 us
+ 431           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+ 432           * @note duty为0，则pwm口恒定输出低电平（极性为正）；duty > period，则pwm口恒定输�
+             -��高电平（极性为正）
+ 433           *
+ 434           * @example 16M内振，pwm频率20K，即周期50us，周期计算 : (199 + 1) * 4 / 16M * 1000000 = 50us
+             -   即 period = 199 , freq_div = TIMER_FREQ_DIV_4
+ 435           * @example 若需要50%占空比，则设置 duty 为 period 一半
+ 436           */
+ 437          void bsp_pwm1_set(unsigned int Period, unsigned int Duty)
+ 438          {
+ 439   1          T1DR1L = (unsigned char)(Period & 0x00FF);
+ 440   1          T1DR1H = (unsigned char)(Period >> 8);
+ 441   1          T1DR2H = (unsigned char)(Duty >> 8);
+ 442   1          T1DR2L = (unsigned char)Duty;
+ 443   1      }
+ 444          
+ 445          
+ 446          /**
+ 447           * @brief 定时器1开关pwm
+ 448           *
+ 449           * @param Switch    pwm开关 { DISABLE, ENABLE }
+ 450           */
+ 451          void bsp_pwm1_switch(TYPE_ENUM_SWITCH Switch)
+ 452          {
+ 453   1          T1CR1 |= U8_BIT0;
+ 454   1          if (Switch == ENABLE) T1CR1 |= 0x80;
+ 455   1          else T1CR1 &= ~0x80;
+ 456   1      }
+ 457          
+ 458          
+ 459          /**
+ 460           * @brief 定时器2初始化为定时器模式
+ 461           *
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 9   
+
+ 462           * @param TimerFreq           定时器分频
+ 463           * @param IntPriority         定时中断优先级
+ 464           * @param Period              定时周期 - 16bit
+ 465           *
+ 466           * @note 定时中断周期计算：(Period + 1) * TimerFreq / SysClock * 1000000 us
+ 467           * @example 16M内振，定时中断125us，最低优先级 : bsp_timer2_init (TIMER_FREQ_DIV_8, TIMER_INT
+             -_PRIORITY_0, 249);
+ 468           * @example 8M内振，定时中断125us，最低优先级 : bsp_timer2_init (TIMER_FREQ_DIV_4, TIMER_INT_
+             -PRIORITY_0, 249);
+ 469           */
+ 470          void bsp_timer2_init(TYPE_ENUM_TIMER_FREQ TimerFreq, TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned in
+             -t Period)
+ 471          {
+ 472   1          T2CR1 = 0;
+ 473   1          T2CR2 = 0;
+ 474   1          // 1 - timer模式选择
+ 475   1          T2CR1 |= (unsigned char)((0x00 & 0x03) << 4);
+ 476   1          // 2 - timer分频选择
+ 477   1          T2CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 478   1          // 3 - 配置定时周期
+ 479   1          T2DR1L = (unsigned char)(Period & 0x00FF);
+ 480   1          T2DR1H = (unsigned char)(Period >> 8);
+ 481   1          // 4 - 配置中断优先级并使能中断
+ 482   1          switch (IntPriority)
+ 483   1          {
+ 484   2              case TIMER_INT_PRIORITY_0:    IP0 &= ~0x02;   IP1 &= ~0x02;   break;
+ 485   2              case TIMER_INT_PRIORITY_1:    IP0 |= 0x02;    IP1 &= ~0x02;   break;
+ 486   2              case TIMER_INT_PRIORITY_2:    IP0 &= ~0x02;   IP1 |= 0x02;    break;
+ 487   2              case TIMER_INT_PRIORITY_3:    IP0 |= 0x02;    IP1 |= 0x02;    break;
+ 488   2              default: break;
+ 489   2          }
+ 490   1          IE1 |= 0x80;
+ 491   1          T2CR1 &= 0xFB;
+ 492   1          T2CR1 |= 0x80;
+ 493   1      }
+ 494          
+ 495          
+ 496          /**
+ 497           * @brief 快速初始化定时器2，定时单位us
+ 498           *
+ 499           * @param IntPriority   定时中断优先级
+ 500           * @param usCnt             定时值，范围 0~32767 单位us
+ 501           */
+ 502          void bsp_timer2_init_us(TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned int usCnt)
+ 503          {
+ 504   1          if (usCnt > 32767) return;
+ 505   1      
+ 506   1          if (SysClock == 16)
+ 507   1          {
+ 508   2              bsp_timer2_init(TIMER_FREQ_DIV_8, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 509   2          }
+ 510   1          else if (SysClock == 8)
+ 511   1          {
+ 512   2              bsp_timer2_init(TIMER_FREQ_DIV_4, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 513   2          }
+ 514   1          else if (SysClock == 4)
+ 515   1          {
+ 516   2              bsp_timer2_init(TIMER_FREQ_DIV_2, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 517   2          }
+ 518   1      }
+ 519          
+ 520          
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 10  
+
+ 521          /**
+ 522           * @brief 定时器2初始化为pwm模式
+ 523           *
+ 524           * @param TimerFreq    定时器分频
+ 525           * @param PwmDir     pwm极性
+ 526           * @param PwmChan
+ 527           * @param Period      pwm周期计数器     16bit，范围 0~65535， 计算公式：(period+1) * freq_di
+             -v / sys_clk * 1000000 us
+ 528           * @param Duty        pwm占空比计数器   16bit，范围 0~65535， 计算公式：(duty+1) * freq_div
+             - / sys_clk * 1000000 us
+ 529           *
+ 530           * @note pwm周期计算：(Period+1) * TimerFreq / SysClock * 1000000 us
+ 531           * @note pwm占空比计算：(Duty+1) * TimerFreq / SysClock * 1000000 us
+ 532           * @note Duty为0，则pwm口恒定输出低电平（极性为正）；Duty > Period，则pwm口恒定输�
+             -��高电平（极性为正）
+ 533           *
+ 534           * @example 16M内振，pwm频率20K，即周期50us，周期计算 : (199 + 1) * 4 / 16M * 1000000 = 50us
+             -   即 period = 199 , freq_div = TIMER_FREQ_DIV_4
+ 535           * @example 若需要50%占空比，则设置 duty 为 period 一半
+ 536           */
+ 537          void bsp_pwm2_init(TYPE_ENUM_TIMER_FREQ TimerFreq, TYPE_ENUM_TIMER_PWM_DIR PwmDir, TYPE_ENUM_TIMER_PWM_CHA
+             -N PwmChan, unsigned int Period, unsigned int Duty)
+ 538          {
+ 539   1          T2CR1 = 0;
+ 540   1          T2CR2 = 0;
+ 541   1          // 1 - timer模式选择
+ 542   1          T2CR1 |= (unsigned char)((0x03 & 0x03) << 4);
+ 543   1          // 2 - timer分频选择
+ 544   1          T2CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 545   1          // 3 - 配置gpio、pwm极性
+ 546   1          if (PwmChan == TIMER_PWM_2_P53)
+ 547   1          {
+ 548   2              LCMCR0 &= U8_NBIT1;
+ 549   2              P5 |= U8_BIT3;
+ 550   2              P5IO |= U8_BIT3;
+ 551   2          }
+ 552   1          else if (PwmChan == TIMER_PWM_2_P24)
+ 553   1          {
+ 554   2              LCMCR0 |= U8_BIT1;
+ 555   2              P2 |= U8_BIT4;
+ 556   2              P2IO |= U8_BIT4;
+ 557   2          }
+ 558   1          T2CR2 |= 0x01;
+ 559   1          T2CR2 |= (unsigned char)((PwmDir & 0x01) << 2);
+ 560   1          // 4 - 配置pwm周期及占空比
+ 561   1          T2DR1L = (unsigned char)(Period & 0x00FF);
+ 562   1          T2DR1H = (unsigned char)(Period >> 8);
+ 563   1          T2DR2H = (unsigned char)(Duty >> 8);
+ 564   1          T2DR2L = (unsigned char)Duty;
+ 565   1      }
+ 566          
+ 567          
+ 568          /**
+ 569           * @brief 定时器2配置pwm周期及占空比
+ 570           *
+ 571           * @param period      pwm周期计数器     16bit，范围 0~65535， 计算公式：(period+1) * freq_di
+             -v / sys_clk * 1000000 us
+ 572           * @param duty        pwm占空比计数器   16bit，范围 0~65535， 计算公式：(duty+1) * freq_div
+             - / sys_clk * 1000000 us
+ 573           *
+ 574           * @note pwm周期计算：(period+1) * freq_div / sys_clk * 1000000 us
+ 575           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 11  
+
+ 576           * @note duty为0，则pwm口恒定输出低电平（极性为正）；duty > period，则pwm口恒定输�
+             -��高电平（极性为正）
+ 577           *
+ 578           * @example 16M内振，pwm频率20K，即周期50us，周期计算 : (199 + 1) * 4 / 16M * 1000000 = 50us
+             -   即 period = 199 , freq_div = TIMER_FREQ_DIV_4
+ 579           * @example 若需要50%占空比，则设置 duty 为 period 一半
+ 580           */
+ 581          void bsp_pwm2_set(unsigned int Period, unsigned int Duty)
+ 582          {
+ 583   1          T2DR1L = (unsigned char)(Period & 0x00FF);
+ 584   1          T2DR1H = (unsigned char)(Period >> 8);
+ 585   1          T2DR2H = (unsigned char)(Duty >> 8);
+ 586   1          T2DR2L = (unsigned char)Duty;
+ 587   1      }
+ 588          
+ 589          
+ 590          /**
+ 591           * @brief 定时器2开关pwm
+ 592           *
+ 593           * @param Switch    pwm开关
+ 594           */
+ 595          void bsp_pwm2_switch(TYPE_ENUM_SWITCH Switch)
+ 596          {
+ 597   1          T2CR1 |= U8_BIT0;
+ 598   1          if (Switch == ENABLE) T2CR1 |= 0x80;
+ 599   1          else T2CR1 &= ~0x80;
+ 600   1      }
+ 601          
+ 602          
+ 603          /**
+ 604           * @brief 定时器5初始化为定时器模式
+ 605           *
+ 606           * @param TimerFreq           定时器分频
+ 607           * @param IntPriority         定时中断优先级
+ 608           * @param Period              定时周期 - 16bit   { 0 ~ 65535 }
+ 609           *
+ 610           * @note 定时中断周期计算：(Period + 1) * TimerFreq / SysClock * 1000000 us
+ 611           * @example 16M内振，定时中断125us，最低优先级 : bsp_timer5_init (TIMER_FREQ_DIV_8, TIMER_INT
+             -_PRIORITY_0, 249);
+ 612           * @example 8M内振，定时中断125us，最低优先级 : bsp_timer5_init (TIMER_FREQ_DIV_4, TIMER_INT_
+             -PRIORITY_0, 249);
+ 613           */
+ 614          void bsp_timer5_init(TYPE_ENUM_TIMER_FREQ TimerFreq, TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned in
+             -t Period)
+ 615          {
+ 616   1          T5CR1 = 0;
+ 617   1          T5CR2 = 0;
+ 618   1          // 1 - timer模式选择
+ 619   1          T5CR1 |= (unsigned char)((0x00 & 0x03) << 4);
+ 620   1          // 2 - timer分频选择
+ 621   1          T5CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 622   1          // 3 - 配置定时周期
+ 623   1          T5DR0L = (unsigned char)(Period & 0x00FF);
+ 624   1          T5DR0H = (unsigned char)(Period >> 8);
+ 625   1          // 4 - 配置中断优先级并使能中断
+ 626   1          switch (IntPriority)
+ 627   1          {
+ 628   2              case TIMER_INT_PRIORITY_0:    IP0 &= ~0x04;   IP1 &= ~0x04;   break;
+ 629   2              case TIMER_INT_PRIORITY_1:    IP0 |= 0x04;    IP1 &= ~0x04;   break;
+ 630   2              case TIMER_INT_PRIORITY_2:    IP0 &= ~0x04;   IP1 |= 0x04;    break;
+ 631   2              case TIMER_INT_PRIORITY_3:    IP0 |= 0x04;    IP1 |= 0x04;    break;
+ 632   2              default: break;
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 12  
+
+ 633   2          }
+ 634   1          IE2 |= 0x01;
+ 635   1          T5CR1 &= 0xFB;
+ 636   1          T5CR1 |= 0x88;
+ 637   1      }
+ 638          
+ 639          
+ 640          /**
+ 641           * @brief 快速初始化定时器5，定时单位us
+ 642           *
+ 643           * @param IntPriority   定时中断优先级
+ 644           * @param usCnt             定时值，范围 0~2000
+ 645           */
+ 646          void bsp_timer5_init_us(TYPE_ENUM_TIMER_INT_PRIORITY IntPriority, unsigned int usCnt)
+ 647          {
+ 648   1          if (usCnt > 32767) return;
+ 649   1      
+ 650   1          if (SysClock == 16)
+ 651   1          {
+ 652   2              bsp_timer5_init(TIMER_FREQ_DIV_8, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 653   2          }
+ 654   1          else if (SysClock == 8)
+ 655   1          {
+ 656   2              bsp_timer5_init(TIMER_FREQ_DIV_4, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 657   2          }
+ 658   1          else if (SysClock == 4)
+ 659   1          {
+ 660   2              bsp_timer5_init(TIMER_FREQ_DIV_2, IntPriority, (unsigned int)((usCnt << 1) - 1));
+ 661   2          }
+ 662   1      }
+ 663          
+ 664          
+ 665          /**
+ 666           * @brief 定时器5初始化为pwm模式
+ 667           *
+ 668           * @param TimerFreq    定时器分频
+ 669           * @param Period      pwm周期计数器     { 16bit，范围 0~65535， 计算公式：(period+1) * freq_
+             -div / sys_clk * 1000000 us }
+ 670           *
+ 671           * @note pwm周期计算：(Period+1) * TimerFreq / SysClock * 1000000 us
+ 672           *
+ 673           * @example 16M内振，pwm频率20K，即周期50us，周期计算 : (199 + 1) * 4 / 16M * 1000000 = 50us
+             -   即 period = 199 , freq_div = TIMER_FREQ_DIV_4
+ 674           */
+ 675          void bsp_pwm5_init_period(TYPE_ENUM_TIMER_FREQ TimerFreq, unsigned int Period)
+ 676          {
+ 677   1          T5CR1 = 0;
+ 678   1          T5CR2 = 0;
+ 679   1          // 1 - timer模式选择
+ 680   1          T5CR1 |= (unsigned char)((0x03 & 0x03) << 4);
+ 681   1          // 2 - timer分频选择
+ 682   1          T5CR2 |= (unsigned char)((TimerFreq & 0x07) << 5);
+ 683   1          // 3 - 配置pwm周期
+ 684   1          T5DR0L = (unsigned char)(Period & 0x00FF);
+ 685   1          T5DR0H = (unsigned char)(Period >> 8);
+ 686   1          // 4 - 定时器使能，开始计数
+ 687   1          T5CR1 &= 0xFB;
+ 688   1          T5CR1 |= 0x88;
+ 689   1      }
+ 690          
+ 691          
+ 692          /**
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 13  
+
+ 693           * @brief 初始化pwma通道
+ 694           *
+ 695           * @param PwmChan  pwm端口
+ 696           * @param PwmDir   pwm极性
+ 697           * @param Duty      pwm占空比计数器
+ 698           *
+ 699           * @note pwm占空比计算：(Duty+1) * TimerFreq / SysClock * 1000000 us
+ 700           */
+ 701          void bsp_pwm5a_init(TYPE_ENUM_TIMER_PWM_CHAN PwmChan, TYPE_ENUM_TIMER_PWM_DIR PwmDir, unsigned int Duty)
+ 702          {
+ 703   1          // 1 - 配置pwma通道
+ 704   1          if (TIMER_PWM_A_P00 == PwmChan)
+ 705   1          {
+ 706   2              LCMCR2 &= U8_NBIT3;
+ 707   2              P0 |= U8_BIT0;
+ 708   2              P0IO |= U8_BIT0;
+ 709   2          }
+ 710   1          else if (TIMER_PWM_A_P45 == PwmChan)
+ 711   1          {
+ 712   2              LCMCR2 |= U8_BIT3;
+ 713   2              P4 |= U8_BIT5;
+ 714   2              P4IO |= U8_BIT5;
+ 715   2          }
+ 716   1          // 2 - 配置pwma极性
+ 717   1          if (TIMER_PWM_DIR_NEGATIVE == PwmDir) T5DCR2 |= U8_BIT0;
+ 718   1          else T5DCR2 &= U8_NBIT0;
+ 719   1          // 3 - 配置pwma占空比
+ 720   1          T5DR1H = (unsigned char)(Duty >> 8);
+ 721   1          T5DR1L = (unsigned char)Duty;
+ 722   1      }
+ 723          
+ 724          
+ 725          /**
+ 726           * @brief 初始化pwmb通道
+ 727           *
+ 728           * @param PwmChan  pwm端口
+ 729           * @param Duty      pwm占空比计数器：独立模式下，设置PWM占空比，长度12位，(duty+1) 
+             -* freq_div / sys_clk * 1000000 us；互补死区模式下，设置互补通道的死区宽度，长度8位，(duty+1) / 
+             -sys_clk * 1000000 us
+ 730           * @param PwmDir   pwm极性  独立模式下表示输出是否反相，互补模式下表示输出与a通
+             -道是否反相
+ 731           * @param PwmMode  pwmB通道模式 互补上升沿死区，互补下降沿死区，互补，独立四种�
+             -��式
+ 732           *
+ 733           * @note pwm占空比计算：(Duty+1) * TimerFreq / SysClock * 1000000 us
+ 734           * @note pwm死区计算：(Duty+1) / SysClock * 1000000 us
+ 735           */
+ 736          void bsp_pwm5b_init(TYPE_ENUM_TIMER_PWM_CHAN PwmChan, TYPE_ENUM_TIMER_PWM_DIR PwmDir, unsigned int Duty, T
+             -YPE_ENUM_TIMER5_PWM_MODE PwmMode)
+ 737          {
+ 738   1          if (TIMER_PWM_B_P01 == PwmChan)
+ 739   1          {
+ 740   2              LCMCR2 &= U8_NBIT4;
+ 741   2              P0 |= U8_BIT1;
+ 742   2              P0IO |= U8_BIT1;
+ 743   2          }
+ 744   1          else if (TIMER_PWM_B_P44 == PwmChan)
+ 745   1          {
+ 746   2              LCMCR2 |= U8_BIT4;
+ 747   2              P4 |= U8_BIT4;
+ 748   2              P4IO |= U8_BIT4;
+ 749   2          }
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 14  
+
+ 750   1      
+ 751   1          if (TIMER_PWM_DIR_NEGATIVE == PwmDir) T5DCR2 |= U8_BIT1;
+ 752   1          else T5DCR2 &= U8_NBIT1;
+ 753   1      
+ 754   1          if (TIMER5_PWM_COMPLE_DEAD_RISING == PwmMode)
+ 755   1          {
+ 756   2              T5DCR2 |= U8_BIT6;  // pwmB互补模式
+ 757   2              T5DCR1 |= U8_BIT0;  // AB插入死区
+ 758   2              T5DCR1 |= U8_BIT1;  // 主波形上升沿插入死区
+ 759   2              T5DR2L = (unsigned char)Duty;
+ 760   2          }
+ 761   1          else if (TIMER5_PWM_COMPLE_DEAD_FALLING == PwmMode)
+ 762   1          {
+ 763   2              T5DCR2 |= U8_BIT6;  // pwmB互补模式
+ 764   2              T5DCR1 |= U8_BIT0;  // AB插入死区
+ 765   2              T5DCR1 &= U8_NBIT1; // 主波形下降沿插入死区
+ 766   2              T5DR2L = (unsigned char)Duty;
+ 767   2          }
+ 768   1          else if (TIMER5_PWM_COMPLE == PwmMode)
+ 769   1          {
+ 770   2              T5DCR2 |= U8_BIT6;  // pwmB互补模式
+ 771   2          }
+ 772   1          else if (TIMER5_PWM_INDEPEND == PwmMode)
+ 773   1          {
+ 774   2              T5DR2H = (unsigned char)(Duty >> 8);
+ 775   2              T5DR2L = (unsigned char)Duty;
+ 776   2          }
+ 777   1      }
+ 778          
+ 779          
+ 780          /**
+ 781           * @brief 初始化pwmc通道
+ 782           *
+ 783           * @param PwmChan  pwm端口
+ 784           * @param PwmDir   pwm极性
+ 785           * @param Duty      pwm占空比计数器   { 12bit，范围 0~4095， 计算公式：(Duty+1) * TimerFreq
+             - / SysClock * 1000000 us }
+ 786           *
+ 787           * @note pwm占空比计算：(Duty+1) * TimerFreq / SysClock * 1000000 us
+ 788           */
+ 789          void bsp_pwm5c_init(TYPE_ENUM_TIMER_PWM_CHAN PwmChan, TYPE_ENUM_TIMER_PWM_DIR PwmDir, unsigned int Duty)
+ 790          {
+ 791   1          if (TIMER_PWM_C_P02 == PwmChan)
+ 792   1          {
+ 793   2              LCMCR2 &= U8_NBIT5;
+ 794   2              P0 |= U8_BIT2;
+ 795   2              P0IO |= U8_BIT2;
+ 796   2          }
+ 797   1          else if (TIMER_PWM_C_P43 == PwmChan)
+ 798   1          {
+ 799   2              LCMCR2 |= U8_BIT5;
+ 800   2              P4 |= U8_BIT3;
+ 801   2              P4IO |= U8_BIT3;
+ 802   2          }
+ 803   1      
+ 804   1          if (TIMER_PWM_DIR_NEGATIVE == PwmDir) T5DCR2 |= U8_BIT2;
+ 805   1          else T5DCR2 &= U8_NBIT2;
+ 806   1      
+ 807   1          T5DR3H = (unsigned char)(Duty >> 8);
+ 808   1          T5DR3L = (unsigned char)Duty;
+ 809   1      }
+ 810          
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 15  
+
+ 811          
+ 812          /**
+ 813           * @brief 初始化pwmd通道
+ 814           *
+ 815           * @param PwmChan  pwm端口
+ 816           * @param Duty      pwm占空比计数器：独立模式下，设置PWM占空比，长度12位，(duty+1) 
+             -* freq_div / sys_clk * 1000000 us；互补死区模式下，设置互补通道的死区宽度，长度8位，(duty+1) / 
+             -sys_clk * 1000000 us
+ 817           * @param PwmDir   pwm极性  独立模式下表示输出是否反相，互补模式下表示输出与a通
+             -道是否反相
+ 818           * @param PwmMode  pwmB通道模式 互补上升沿死区，互补下降沿死区，互补，独立四种�
+             -��式
+ 819           *
+ 820           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+ 821           * @note pwm死区计算：(duty+1) / sys_clk * 1000000 us
+ 822           */
+ 823          void bsp_pwm5d_init(TYPE_ENUM_TIMER_PWM_CHAN PwmChan, TYPE_ENUM_TIMER_PWM_DIR PwmDir, unsigned int Duty, T
+             -YPE_ENUM_TIMER5_PWM_MODE PwmMode)
+ 824          {
+ 825   1          if (TIMER_PWM_D_P03 == PwmChan)
+ 826   1          {
+ 827   2              LCMCR2 &= U8_NBIT6;
+ 828   2              P0 |= U8_BIT3;
+ 829   2              P0IO |= U8_BIT3;
+ 830   2          }
+ 831   1          else if (TIMER_PWM_D_P42 == PwmChan)
+ 832   1          {
+ 833   2              LCMCR2 |= U8_BIT6;
+ 834   2              P4 |= U8_BIT2;
+ 835   2              P4IO |= U8_BIT2;
+ 836   2          }
+ 837   1      
+ 838   1          if (TIMER_PWM_DIR_NEGATIVE == PwmDir) T5DCR2 |= U8_BIT3;
+ 839   1          else T5DCR2 &= U8_NBIT3;
+ 840   1      
+ 841   1          if (TIMER5_PWM_COMPLE_DEAD_RISING == PwmMode)
+ 842   1          {
+ 843   2              T5DCR1 |= U8_BIT6;  // pwmD互补模式
+ 844   2              T5DCR1 |= U8_BIT2;  // CD插入死区
+ 845   2              T5DCR1 |= U8_BIT3;  // 主波形上升沿插入死区
+ 846   2              T5DR4L = (unsigned char)Duty;
+ 847   2          }
+ 848   1          else if (TIMER5_PWM_COMPLE_DEAD_FALLING == PwmMode)
+ 849   1          {
+ 850   2              T5DCR1 |= U8_BIT6;  // pwmD互补模式
+ 851   2              T5DCR1 |= U8_BIT2;  // CD插入死区
+ 852   2              T5DCR1 &= U8_NBIT3; // 主波形下降沿插入死区
+ 853   2              T5DR4L = (unsigned char)Duty;
+ 854   2          }
+ 855   1          else if (TIMER5_PWM_COMPLE == PwmMode)
+ 856   1          {
+ 857   2              T5DCR1 |= U8_BIT6;  // pwmD互补模式
+ 858   2          }
+ 859   1          else if (TIMER5_PWM_INDEPEND == PwmMode)
+ 860   1          {
+ 861   2              T5DR4H = (unsigned char)(Duty >> 8);
+ 862   2              T5DR4L = (unsigned char)Duty;
+ 863   2          }
+ 864   1      }
+ 865          
+ 866          
+ 867          /**
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 16  
+
+ 868           * @brief 初始化pwme通道
+ 869           *
+ 870           * @param pwm_gpio  pwm端口     { TIMER_PWM_E_P04, TIMER_PWM_E_P44 }
+ 871           * @param pwm_dir   pwm极性     { TIMER_PWM_DIR_POSITIVE, TIMER_PWM_DIR_NEGATIVE }
+ 872           * @param duty      pwm占空比计数器   { 12bit，范围 0~4095， 计算公式：(duty+1) * freq_div 
+             -/ sys_clk * 1000000 us }
+ 873           *
+ 874           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+ 875           */
+ 876          void bsp_pwm5e_init(TYPE_ENUM_TIMER_PWM_CHAN PwmChan, TYPE_ENUM_TIMER_PWM_DIR PwmDir, unsigned int Duty)
+ 877          {
+ 878   1          if (TIMER_PWM_E_P04 == PwmChan)
+ 879   1          {
+ 880   2              LCMCR2 &= U8_NBIT7;
+ 881   2              P0 |= U8_BIT4;
+ 882   2              P0IO |= U8_BIT4;
+ 883   2          }
+ 884   1      
+ 885   1          if (TIMER_PWM_DIR_NEGATIVE == PwmDir) T5DCR2 |= U8_BIT4;
+ 886   1          else T5DCR2 &= U8_NBIT4;
+ 887   1      
+ 888   1          T5DR5H = (unsigned char)(Duty >> 8);
+ 889   1          T5DR5L = (unsigned char)Duty;
+ 890   1      }
+ 891          
+ 892          
+ 893          /**
+ 894           * @brief 初始化pwmf通道
+ 895           *
+ 896           * @param pwm_gpio  pwm端口
+ 897           * @param duty      pwm占空比计数器：独立模式下，设置PWM占空比，长度12位，(duty+1) 
+             -* freq_div / sys_clk * 1000000 us；互补死区模式下，设置互补通道的死区宽度，长度8位，(duty+1) / 
+             -sys_clk * 1000000 us
+ 898           * @param pwm_dir   pwm极性   独立模式下表示输出是否反相，互补模式下表示输出与a�
+             -��道是否反相
+ 899           * @param pwm_mode  pwmB通道模式    互补上升沿死区，互补下降沿死区，互补，独立四
+             -种模式
+ 900           *
+ 901           * @note pwm占空比计算：(duty+1) * freq_div / sys_clk * 1000000 us
+ 902           * @note pwm死区计算：(duty+1) / sys_clk * 1000000 us
+ 903           */
+ 904          void bsp_pwm5f_init(TYPE_ENUM_TIMER_PWM_CHAN PwmChan, TYPE_ENUM_TIMER_PWM_DIR PwmDir, unsigned int Duty, T
+             -YPE_ENUM_TIMER5_PWM_MODE PwmMode)
+ 905          {
+ 906   1          if (TIMER_PWM_F_P05 == PwmChan)
+ 907   1          {
+ 908   2              LCMCR1 |= U8_BIT0;
+ 909   2              P0 |= U8_BIT5;
+ 910   2              P0IO |= U8_BIT5;
+ 911   2          }
+ 912   1      
+ 913   1          if (TIMER_PWM_DIR_NEGATIVE == PwmDir) T5DCR2 |= U8_BIT5;
+ 914   1          else T5DCR2 &= U8_NBIT5;
+ 915   1      
+ 916   1          if (TIMER5_PWM_COMPLE_DEAD_RISING == PwmMode)
+ 917   1          {
+ 918   2              T5DCR1 |= U8_BIT7;  // pwmF互补模式
+ 919   2              T5DCR1 |= U8_BIT4;  // EF插入死区
+ 920   2              T5DCR1 |= U8_BIT5;  // 主波形上升沿插入死区
+ 921   2              T5DR6L = (unsigned char)Duty;
+ 922   2          }
+ 923   1          else if (TIMER5_PWM_COMPLE_DEAD_FALLING == PwmMode)
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 17  
+
+ 924   1          {
+ 925   2              T5DCR1 |= U8_BIT7;  // pwmF互补模式
+ 926   2              T5DCR1 |= U8_BIT4;  // EF插入死区
+ 927   2              T5DCR1 &= U8_NBIT5; // 主波形下降沿插入死区
+ 928   2              T5DR6L = (unsigned char)Duty;
+ 929   2          }
+ 930   1          else if (TIMER5_PWM_COMPLE == PwmMode)
+ 931   1          {
+ 932   2              T5DCR1 |= U8_BIT7;  // pwmF互补模式
+ 933   2          }
+ 934   1          else if (TIMER5_PWM_INDEPEND == PwmMode)
+ 935   1          {
+ 936   2              T5DR6H = (unsigned char)(Duty >> 8);
+ 937   2              T5DR6L = (unsigned char)Duty;
+ 938   2          }
+ 939   1      }
+ 940          
+ 941          
+ 942          /**
+ 943           * @brief pwma ~ pwmf 通道开关
+ 944           *
+ 945           * @param PwmChan pwm通道
+ 946           * @param Switch 开关
+ 947           */
+ 948          void bsp_pwm5_switch(TYPE_ENUM_TIMER5_PWM_CHAN PwmChan, TYPE_ENUM_SWITCH Switch)
+ 949          {
+ 950   1          if (ENABLE == Switch) T5PWMOE |= (0x01 << PwmChan);
+ 951   1          else T5PWMOE &= ~(0x01 << PwmChan);
+ 952   1      }
+ 953          
+ 954          
+ 955          /**
+ 956           * @brief pwma ~ pwmf 设置占空比或死区
+ 957           *
+ 958           * @param PwmChan pwm通道
+ 959           * @param Duty  pwm占空比计数器：独立模式下，设置PWM占空比，长度12位，(duty+1) * fr
+             -eq_div / sys_clk * 1000000 us；互补死区模式下，设置互补通道的死区宽度，长度8位，(duty+1) / sys_
+             -clk * 1000000 us
+ 960           */
+ 961          void bsp_pwm5_duty_set(TYPE_ENUM_TIMER5_PWM_CHAN PwmChan, unsigned int Duty)
+ 962          {
+ 963   1          switch (PwmChan)
+ 964   1          {
+ 965   2              case TIMER5_PWM_A:
+ 966   2                  T5DR1H = (unsigned char)(Duty >> 8);
+ 967   2                  T5DR1L = (unsigned char)Duty;
+ 968   2                  break;
+ 969   2              case TIMER5_PWM_B:
+ 970   2                  T5DR2H = (unsigned char)(Duty >> 8);
+ 971   2                  T5DR2L = (unsigned char)Duty;
+ 972   2                  break;
+ 973   2              case TIMER5_PWM_C:
+ 974   2                  T5DR3H = (unsigned char)(Duty >> 8);
+ 975   2                  T5DR3L = (unsigned char)Duty;
+ 976   2                  break;
+ 977   2              case TIMER5_PWM_D:
+ 978   2                  T5DR4H = (unsigned char)(Duty >> 8);
+ 979   2                  T5DR4L = (unsigned char)Duty;
+ 980   2                  break;
+ 981   2              case TIMER5_PWM_E:
+ 982   2                  T5DR5H = (unsigned char)(Duty >> 8);
+ 983   2                  T5DR5L = (unsigned char)Duty;
+C51 COMPILER V9.59.0.0   BSP_TIMER                                                         08/29/2024 16:47:00 PAGE 18  
+
+ 984   2                  break;
+ 985   2              case TIMER5_PWM_F:
+ 986   2                  T5DR6H = (unsigned char)(Duty >> 8);
+ 987   2                  T5DR6L = (unsigned char)Duty;
+ 988   2                  break;
+ 989   2      
+ 990   2              default:
+ 991   2                  break;
+ 992   2          }
+ 993   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   2184    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6      40
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

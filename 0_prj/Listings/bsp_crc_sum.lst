@@ -1,0 +1,169 @@
+C51 COMPILER V9.59.0.0   BSP_CRC_SUM                                                       08/29/2024 16:46:58 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BSP_CRC_SUM
+OBJECT MODULE PLACED IN .\Objects\bsp_crc_sum.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\bsp_crc_sum.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bsp;..\
+                    -2_hal;..\3_app;..\4_user) DEBUG PRINT(.\Listings\bsp_crc_sum.lst) OBJECT(.\Objects\bsp_crc_sum.obj)
+
+line level    source
+
+   1          /**
+   2           * @file bsp_crc_sum.c
+   3           * @author your name (you@domain.com)
+   4           * @brief 中微爱芯 & aip8f3264
+   5           * @brief RD8F12AE2207A / RD8F04DS1407A / RD8F04DS1007A
+   6           * @version 0.1
+   7           * @date 2024-01-04
+   8           *
+   9           * @copyright Copyright (c) 2024
+  10           *
+  11           */
+  12          #include "bsp_crc_sum.h"
+  13          #include "bsp_sfr.h"
+  14          #include "typedef.h"
+  15          
+  16          
+  17           /**
+  18            * @brief 对ram进行crc校验(x^16 + x^12 + x^5 + 1)
+  19            *
+  20            * @param StartAddr ram校验开始地址指针
+  21            * @param Len 进行校验的长度
+  22            *
+  23            * @return unsigned int 12位crc校验结果
+  24            *
+  25            * @note 多项式为 x^16 + x^12 + x^5 + 1
+  26            */
+  27          unsigned int crc_check_ram(unsigned char *StartAddr, unsigned int Len)
+  28          {
+  29   1          unsigned int i = 0;
+  30   1      
+  31   1          CRCDH = 0;
+  32   1          CRCDL = 0;
+  33   1          CRCIN = 0;
+  34   1      
+  35   1          for (i = 0; i < Len; i++)
+  36   1          {
+  37   2              CRCIN = *(StartAddr + i);
+  38   2          }
+  39   1      
+  40   1          NOP(); NOP(); NOP(); NOP(); NOP();
+  41   1          NOP(); NOP(); NOP(); NOP(); NOP();
+  42   1      
+  43   1          i = CRCDH;
+  44   1          i = i << 8;
+  45   1          i += CRCDL;
+  46   1      
+  47   1          return i;
+  48   1      }
+  49          
+  50          
+  51          /**
+  52           * @brief 对rom进行crc校验(x^16 + x^12 + x^5 + 1)
+  53           *
+  54           * @param StartAddr rom校验开始地址
+C51 COMPILER V9.59.0.0   BSP_CRC_SUM                                                       08/29/2024 16:46:58 PAGE 2   
+
+  55           * @param Len 进行校验的长度
+  56           *
+  57           * @return unsigned int 12位crc校验结果
+  58           *
+  59           * @note 多项式为 x^16 + x^12 + x^5 + 1
+  60           */
+  61          unsigned int crc_check_rom(unsigned int StartAddr, unsigned int Len)
+  62          {
+  63   1          unsigned int i = 0;
+  64   1      
+  65   1          // MOV指令寻址Flash
+  66   1          KEYCODE = 0x3C;
+  67   1          KEYCODE = 0x02;
+  68   1          KEYCODE = 0xA1;
+  69   1          FSCR = 0x00;
+  70   1          KEYCODE = 0x00;
+  71   1      
+  72   1          CRCDH = 0;
+  73   1          CRCDL = 0;
+  74   1          CRCIN = 0;
+  75   1      
+  76   1          for (i = 0; i < Len; i++)
+  77   1          {
+  78   2              CRCIN = CBYTE[StartAddr + i];
+  79   2          }
+  80   1      
+  81   1          NOP(); NOP(); NOP(); NOP(); NOP();
+  82   1          NOP(); NOP(); NOP(); NOP(); NOP();
+  83   1      
+  84   1          i = CRCDH;
+  85   1          i = i << 8;
+  86   1          i += CRCDL;
+  87   1      
+  88   1          return i;
+  89   1      }
+  90          
+  91          
+  92          /**
+  93           * @brief 对ram进行sum校验
+  94           *
+  95           * @param StartAddr rom校验开始地址指针
+  96           * @param Len 进行校验的长度
+  97           *
+  98           * @return unsigned char 8位sum校验结果
+  99           *
+ 100           * @note 无
+ 101           */
+ 102          unsigned char sum_check_ram(unsigned char *StartAddr, unsigned int Len)
+ 103          {
+ 104   1          unsigned int i = 0;
+ 105   1          unsigned int j = 0;
+ 106   1      
+ 107   1          for (i = 0; i < Len; i++)
+ 108   1          {
+ 109   2              j += *(StartAddr + i);
+ 110   2          }
+ 111   1      
+ 112   1          return j;
+ 113   1      }
+ 114          
+ 115          
+ 116          /**
+C51 COMPILER V9.59.0.0   BSP_CRC_SUM                                                       08/29/2024 16:46:58 PAGE 3   
+
+ 117           * @brief 对rom进行sum校验
+ 118           *
+ 119           * @param StartAddr rom校验开始地址
+ 120           * @param Len 进行校验的长度
+ 121           *
+ 122           * @return unsigned char 8位sum校验结果
+ 123           *
+ 124           * @note 无
+ 125           */
+ 126          unsigned char sum_check_rom(unsigned int StartAddr, unsigned int Len)
+ 127          {
+ 128   1          unsigned int i = 0;
+ 129   1          unsigned int j = 0;
+ 130   1      
+ 131   1          for (i = 0; i < Len; i++)
+ 132   1          {
+ 133   2              j += CBYTE[StartAddr + i];
+ 134   2          }
+ 135   1      
+ 136   1          return j;
+ 137   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    263    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----      18
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

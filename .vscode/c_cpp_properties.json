@@ -1,0 +1,31 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/1_bsp/**",
+                "${workspaceFolder}/2_hal/**",
+                "${workspaceFolder}/3_app/**",
+                "${workspaceFolder}/4_user/**",
+                "C:/Keil_v5/C51/**",
+                "${workspaceFolder}/3_app",
+                "${workspaceFolder}/1_bsp"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "sfr = unsigned char",
+                "sbit = unsigned char",
+                "xdata =",
+                "interrupt=",
+                "code ="
+            ],
+            "cStandard": "c11",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "windows-gcc-x86"
+        }
+    ],
+    "version": 4
+}

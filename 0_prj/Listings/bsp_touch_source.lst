@@ -1,0 +1,519 @@
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BSP_TOUCH_SOURCE
+OBJECT MODULE PLACED IN .\Objects\bsp_touch_source.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\bsp_touch_source.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bs
+                    -p;..\2_hal;..\3_app;..\4_user) DEBUG PRINT(.\Listings\bsp_touch_source.lst) OBJECT(.\Objects\bsp_touch_source.obj)
+
+line level    source
+
+   1          /**
+   2           * @file bsp_touch_source.c
+   3           * @author your name (you@domain.com)
+   4           * @brief 触摸库外部函数，请勿修改
+   5           * @brief 中微爱芯 & aip8f3264
+   6           * @brief RD8F12AE2207A / RD8F04DS1407A / RD8F04DS1007A
+   7           * @version 1.8
+   8           * @date 2024-01-15
+   9           *
+  10           * @copyright Copyright (c) 2024
+  11           *
+  12           */
+  13          #include "bsp_touch_user.h"
+  14          #message "aip8f3264 tk lib compiled, ver V1.8 !!"
+*** MESSAGE C320 IN LINE 14 OF ..\1_bsp\bsp_touch_source.c: "aip8f3264 tk lib compiled, ver V1.8 !!"
+  15          
+  16          /* = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
+  17          /*                               触摸库外部函数  请勿修改                                 */
+  18          /* = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
+  19          const unsigned int code TK_CHAN_KEY[] =
+  20          {
+  21                  USER_TK0_CHAN,
+  22                  USER_TK1_CHAN,
+  23                  USER_TK2_CHAN,
+  24                  USER_TK3_CHAN,
+  25                  USER_TK4_CHAN,
+  26                  USER_TK5_CHAN,
+  27                  USER_TK6_CHAN,
+  28                  USER_TK7_CHAN,
+  29                  USER_TK8_CHAN,
+  30                  USER_TK9_CHAN,
+  31                  USER_TK10_CHAN,
+  32                  USER_TK11_CHAN,
+  33                  USER_TK12_CHAN,
+  34                  USER_TK13_CHAN,
+  35                  USER_TK14_CHAN,
+  36                  USER_TK15_CHAN,
+  37                  USER_TK16_CHAN,
+  38                  USER_TK17_CHAN,
+  39                  USER_TK18_CHAN,
+  40                  USER_TK19_CHAN,
+  41                  USER_TK20_CHAN,
+  42                  USER_TK21_CHAN,
+  43                  USER_TK22_CHAN,
+  44                  USER_TK23_CHAN,
+  45                  USER_TK24_CHAN,
+  46                  USER_TK25_CHAN,
+  47                  USER_TK26_CHAN,
+  48                  USER_TK27_CHAN,
+  49                  USER_TK28_CHAN,
+  50                  USER_TK29_CHAN,
+  51                  USER_TK30_CHAN
+  52          };
+  53          
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 2   
+
+  54          
+  55          const unsigned char code TK_THRESHOLD_ARRAY[] =
+  56          {
+  57                  USER_TK0_THRESHOLD,
+  58                  USER_TK1_THRESHOLD,
+  59                  USER_TK2_THRESHOLD,
+  60                  USER_TK3_THRESHOLD,
+  61                  USER_TK4_THRESHOLD,
+  62                  USER_TK5_THRESHOLD,
+  63                  USER_TK6_THRESHOLD,
+  64                  USER_TK7_THRESHOLD,
+  65                  USER_TK8_THRESHOLD,
+  66                  USER_TK9_THRESHOLD,
+  67                  USER_TK10_THRESHOLD,
+  68                  USER_TK11_THRESHOLD,
+  69                  USER_TK12_THRESHOLD,
+  70                  USER_TK13_THRESHOLD,
+  71                  USER_TK14_THRESHOLD,
+  72                  USER_TK15_THRESHOLD,
+  73                  USER_TK16_THRESHOLD,
+  74                  USER_TK17_THRESHOLD,
+  75                  USER_TK18_THRESHOLD,
+  76                  USER_TK19_THRESHOLD,
+  77                  USER_TK20_THRESHOLD,
+  78                  USER_TK21_THRESHOLD,
+  79                  USER_TK22_THRESHOLD,
+  80                  USER_TK23_THRESHOLD,
+  81                  USER_TK24_THRESHOLD,
+  82                  USER_TK25_THRESHOLD,
+  83                  USER_TK26_THRESHOLD,
+  84                  USER_TK27_THRESHOLD,
+  85                  USER_TK28_THRESHOLD,
+  86                  USER_TK29_THRESHOLD,
+  87                  USER_TK30_THRESHOLD
+  88          };
+  89          
+  90          const unsigned char code TK_SCAN_CLK_ARRAY[3] = { TK_CLK_FREQ_4, TK_CLK_FREQ_5, TK_CLK_FREQ_7 };        // 扫描
+             -斩频，频率切换数组
+  91          
+  92          unsigned int  xdata TKValueBuff1[TK_KEY_AMOUNT];
+  93          unsigned int  xdata TKBaseLine[TK_KEY_AMOUNT];
+  94          unsigned int  xdata TKIntValueBuff[TK_KEY_AMOUNT][3];
+  95          unsigned char xdata TKValueDealCnt[TK_KEY_AMOUNT];
+  96          unsigned int  xdata TKValueMax[TK_KEY_AMOUNT];
+  97          unsigned int  xdata TKValueMin[TK_KEY_AMOUNT];
+  98          unsigned char xdata TKPressShakeCnt[TK_KEY_AMOUNT];
+  99          unsigned char xdata TKPressLooseCnt[TK_KEY_AMOUNT];
+ 100          unsigned char xdata TKBaseLineRfeCnt[TK_KEY_AMOUNT];
+ 101          unsigned int  xdata TKValueDealOld[TK_KEY_AMOUNT];
+ 102          unsigned char xdata TKRfeCntAdjust[TK_KEY_AMOUNT];
+ 103          
+ 104          unsigned long xdata TKPressFlag = 0;
+ 105          unsigned char idata TKCurrentChan = 0;
+ 106          unsigned int  idata TKTransTimeCnt = 0xFFFF;
+ 107          unsigned char idata TKScanClkCnt = 0;
+ 108          unsigned char idata TKScanPeriodFlag = 0;
+ 109          unsigned long xdata TKValueDealFlag = 0;
+ 110          unsigned long xdata TKTempPressFlag = 0;
+ 111          unsigned char xdata TKTempPressCnt = 0;
+ 112          unsigned char xdata TKPressCnt = 0;
+ 113          unsigned char xdata TKPressNoiseShakeCnt = 0;
+ 114          unsigned char xdata TKPressNoiseLooseCnt = 0;
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 3   
+
+ 115          unsigned int  xdata TKLongKeyTime = 0;
+ 116          
+ 117          unsigned char xdata dTKChNum = TK_KEY_AMOUNT;
+ 118          unsigned char xdata dTKNoiseValue = TK_NOISE_VALUE;
+ 119          unsigned char xdata dTKValidKey = TK_VALID_KEY;
+ 120          unsigned char xdata dTKLagValue = TK_LAG_VALUE;
+ 121          unsigned char xdata dTKPressCnt = TK_PRESS_CNT;
+ 122          unsigned char xdata dTKLooseCnt = TK_LOOSEN_CNT;
+ 123          unsigned char xdata dTKBLUpdateCnt = TK_BL_UPDATE_CNT;
+ 124          unsigned char xdata dTKFreqHopping = TK_AUTO_FREQ_HOPPING;
+ 125          unsigned char xdata dTKRefVol = TK_REF_VOL;
+ 126          unsigned char xdata dTKNoiseShake = TK_NOISE_SHAKE;
+ 127          unsigned int  xdata dTKLongKeyTime = TK_LONG_KEY_TIME;
+ 128          
+ 129          extern void TKInterruptFunc(void);
+ 130          
+ 131          
+ 132          /* * * * * * * * * * * * * * *
+ 133          * * 函数名称：TKChanClrGPIO
+ 134          * * 函数说明：触摸通道配置
+ 135          * * 备    注：GPIO输出低电平，上拉关闭
+ 136          * * * * * * * * * * * * * * */
+ 137          void TKChanClrGPIO(unsigned char CurrentChan)
+ 138          {
+ 139   1              unsigned char TK_GPIO = (unsigned char)(TK_CHAN_KEY[CurrentChan] >> 12);
+ 140   1              unsigned char TK_BIT = (unsigned char)((TK_CHAN_KEY[CurrentChan] >> 8) & 0x0F);
+ 141   1      
+ 142   1              switch (TK_GPIO)
+ 143   1              {
+ 144   2                      case 0x00:
+ 145   2                              P0IO |= (0x1 << TK_BIT);
+ 146   2                              P0 &= ~(0x1 << TK_BIT);
+ 147   2                              P0PU &= ~(0x1 << TK_BIT);
+ 148   2                              break;
+ 149   2      
+ 150   2                      case 0x01:
+ 151   2                              P1IO |= (0x1 << TK_BIT);
+ 152   2                              P1 &= ~(0x1 << TK_BIT);
+ 153   2                              P1PU &= ~(0x1 << TK_BIT);
+ 154   2                              break;
+ 155   2      
+ 156   2                      case 0x02:
+ 157   2                              P2IO |= (0x1 << TK_BIT);
+ 158   2                              P2 &= ~(0x1 << TK_BIT);
+ 159   2                              P2PU &= ~(0x1 << TK_BIT);
+ 160   2                              break;
+ 161   2      
+ 162   2                      case 0x03:
+ 163   2                              P3IO |= (0x1 << TK_BIT);
+ 164   2                              P3 &= ~(0x1 << TK_BIT);
+ 165   2                              P3PU &= ~(0x1 << TK_BIT);
+ 166   2                              break;
+ 167   2      
+ 168   2                      case 0x04:
+ 169   2                              P4IO |= (0x1 << TK_BIT);
+ 170   2                              P4 &= ~(0x1 << TK_BIT);
+ 171   2                              P4PU &= ~(0x1 << TK_BIT);
+ 172   2                              break;
+ 173   2      
+ 174   2                      case 0x05:
+ 175   2                              P5IO |= (0x1 << TK_BIT);
+ 176   2                              P5 &= ~(0x1 << TK_BIT);
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 4   
+
+ 177   2                              P5PU &= ~(0x1 << TK_BIT);
+ 178   2                              break;
+ 179   2      
+ 180   2                      default: break;
+ 181   2              }
+ 182   1      }
+ 183          
+ 184          
+ 185          /* * * * * * * * * * * * * * *
+ 186          * * 函数名称：TKChanInputGPIO
+ 187          * * 函数说明：触摸通道配置
+ 188          * * 备    注：GPIO输入
+ 189          * * * * * * * * * * * * * * */
+ 190          void TKChanInputGPIO(unsigned char CurrentChan)
+ 191          {
+ 192   1              unsigned char TK_GPIO = (unsigned char)(TK_CHAN_KEY[CurrentChan] >> 12);
+ 193   1              unsigned char TK_BIT = (unsigned char)((TK_CHAN_KEY[CurrentChan] >> 8) & 0x0F);
+ 194   1      
+ 195   1              switch (TK_GPIO)
+ 196   1              {
+ 197   2                      case 0x00:
+ 198   2                              P0IO &= ~(0x1 << TK_BIT);
+ 199   2                              break;
+ 200   2      
+ 201   2                      case 0x01:
+ 202   2                              P1IO &= ~(0x1 << TK_BIT);
+ 203   2                              break;
+ 204   2      
+ 205   2                      case 0x02:
+ 206   2                              P2IO &= ~(0x1 << TK_BIT);
+ 207   2                              break;
+ 208   2      
+ 209   2                      case 0x03:
+ 210   2                              P3IO &= ~(0x1 << TK_BIT);
+ 211   2                              break;
+ 212   2      
+ 213   2                      case 0x04:
+ 214   2                              P4IO &= ~(0x1 << TK_BIT);
+ 215   2                              break;
+ 216   2      
+ 217   2                      case 0x05:
+ 218   2                              P5IO &= ~(0x1 << TK_BIT);
+ 219   2                              break;
+ 220   2      
+ 221   2                      default: break;
+ 222   2              }
+ 223   1      }
+ 224          
+ 225          
+ 226          /* * * * * * * * * * * * * * *
+ 227          * * 函数名称：TKGPIOInit
+ 228          * * 函数说明：所有触摸通道初始化
+ 229          * * 备    注：GPIO输出低电平，上拉关闭，再设为输入
+ 230          * * * * * * * * * * * * * * */
+ 231          void TKGPIOInit(void)
+ 232          {
+ 233   1              unsigned char i = 0;
+ 234   1              for (i = 0; i < dTKChNum; i++)          // 所有配置成触摸的GPIO初始化，设为输出，低电平，关
+             -闭上拉
+ 235   1              {
+ 236   2                      TKChanClrGPIO(i);
+ 237   2                      TKChanInputGPIO(i);
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 5   
+
+ 238   2              }
+ 239   1      
+ 240   1              TKCHSEL = (unsigned char)TK_CHAN_KEY[TKCurrentChan];// 将首路需要检测触摸值的GPIO设为模拟�
+             -��入
+ 241   1              P0IO &= 0x7F;                           // 配置基准电容GPIO为输入，浮空
+ 242   1      }
+ 243          
+ 244          
+ 245          /* * * * * * * * * * * * * * *
+ 246          * * 函数名称：TKVariableInit
+ 247          * * 函数说明：触摸变量初始化
+ 248          * * 备    注：
+ 249          * * * * * * * * * * * * * * */
+ 250          void TKVariableInit(void)
+ 251          {
+ 252   1              unsigned char i;
+ 253   1      
+ 254   1              TKValueDealFlag = 0;
+ 255   1              TKTempPressFlag = 0;
+ 256   1              TKTempPressCnt = 0;
+ 257   1              TKPressFlag = 0;
+ 258   1              TKPressCnt = 0;
+ 259   1              TKScanClkCnt = 0;
+ 260   1              TKCurrentChan = 0;
+ 261   1              TKTransTimeCnt = 0xFFFF;
+ 262   1      
+ 263   1              for (i = 0; i < dTKChNum; i++)
+ 264   1              {
+ 265   2                      TKValueBuff1[i] = 0;
+ 266   2                      TKBaseLine[i] = 0;
+ 267   2                      TKIntValueBuff[i][0] = 0;
+ 268   2                      TKIntValueBuff[i][1] = 0;
+ 269   2                      TKIntValueBuff[i][2] = 0;
+ 270   2                      TKValueDealCnt[i] = 0;
+ 271   2                      TKValueMax[i] = 0;
+ 272   2                      TKValueMin[i] = 0xFFFF;
+ 273   2                      TKPressShakeCnt[i] = 0;
+ 274   2                      TKPressLooseCnt[i] = 0;
+ 275   2                      TKBaseLineRfeCnt[i] = 0;
+ 276   2                      TKValueDealOld[i] = 0;
+ 277   2                      TKRfeCntAdjust[i] = 0;
+ 278   2              }
+ 279   1      }
+ 280          
+ 281          
+ 282          /* * * * * * * * * * * * * * *
+ 283          * * 函数名称：TKDefInit
+ 284          * * 函数说明：宏定义变量初始化
+ 285          * * 备    注：
+ 286          * * * * * * * * * * * * * * */
+ 287          void TKDefInit(void)
+ 288          {
+ 289   1              dTKChNum = TK_KEY_AMOUNT;                               // 使能按键个数
+ 290   1              dTKNoiseValue = TK_NOISE_VALUE;                 // 噪声值
+ 291   1              dTKValidKey = TK_VALID_KEY;                             // 最大允许有效按键
+ 292   1              dTKLagValue = TK_LAG_VALUE;                             // 按键迟滞值
+ 293   1              dTKPressCnt = TK_PRESS_CNT;                             // 按键按下消抖
+ 294   1              dTKLooseCnt = TK_LOOSEN_CNT;                    // 按键松开消抖
+ 295   1              dTKBLUpdateCnt = TK_BL_UPDATE_CNT;              // 基准更新消抖
+ 296   1              dTKFreqHopping = TK_AUTO_FREQ_HOPPING;  // 自动抖频选项
+ 297   1              dTKRefVol = TK_REF_VOL;                                 // 参考电压选择
+ 298   1              dTKNoiseShake = TK_NOISE_SHAKE;                 // 加重消抖上限
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 6   
+
+ 299   1              dTKLongKeyTime = TK_LONG_KEY_TIME;              // 按键有效最长时间
+ 300   1      }
+ 301          
+ 302          
+ 303          /* * * * * * * * * * * * * * *
+ 304          * * 函数名称：TKInit
+ 305          * * 函数说明：触摸模块初始化
+ 306          * * 备    注：
+ 307          * * * * * * * * * * * * * * */
+ 308          void TKInit(void)
+ 309          {
+ 310   1              TKDefInit();
+ 311   1              TKVariableInit();
+ 312   1              TKGPIOInit();
+ 313   1      }
+ 314          
+ 315          
+ 316          /* * * * * * * * * * * * * * *
+ 317          * * 函数名称：TKInterrupt
+ 318          * * 函数说明：触摸中断
+ 319          * * 备    注：
+ 320          * * * * * * * * * * * * * * */
+ 321          void TKInterrupt(void) interrupt 10
+ 322          {
+ 323   1              TKInterruptFunc();
+ 324   1      }
+ 325          
+ 326          
+ 327          
+ 328          /* = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
+ 329          /*                                调试相关函数  请勿修改                                  */
+ 330          /* = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = */
+ 331          #if (DEBUG_ENABLE == 1)
+              
+              #define WriteDeviceAddress      0xa0
+              #define ReadDviceAddress        0xa1
+              #define Data_ADDR                       0X00
+              #define C_SlaveAddr                     0x28
+              #define C_FrameHeader           0x55AA
+              
+              
+              unsigned char xdata TKDebugCnt = 0;
+              unsigned char r1ms_tkFrame;
+              void TKDebugFunc(unsigned int *tkData1, unsigned int *tkData2, unsigned char DataSize);
+              
+              void I2C_Wait_uSec(unsigned char  num)
+              {
+                      while (num--);
+              }
+              
+              
+              void I2C_Start()
+              {
+                      Port_I2CSDA = 1;
+                      Port_I2CSCL = 1;
+                      I2C_Wait_uSec(20);
+                      Port_I2CSDA = 0;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSCL = 0;
+              }
+              
+              
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 7   
+
+              void I2C_Stop()
+              {
+                      Port_I2CSCL = 0;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSDA = 0;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSCL = 1;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSDA = 1;
+              }
+              
+              
+              bit TestAck()
+              {
+                      bit ErrorBit;
+                      Port_I2CSDA_SETIN;
+                      I2C_Wait_uSec(20);
+                      Port_I2CSCL = 1;
+                      I2C_Wait_uSec(20);
+                      ErrorBit = Port_I2CSDA;
+                      Port_I2CSCL = 0;
+                      Port_I2CSDA_SETOUT;
+              
+                      return(ErrorBit);
+              }
+              
+              
+              void Write_Byte(unsigned char input)
+              {
+                      unsigned char temp;
+                      for (temp = 8;temp > 0;temp--)
+                      {
+                              Port_I2CSDA = (bit)(input & 0x80);
+                              I2C_Wait_uSec(10);
+                              Port_I2CSCL = 1;
+                              I2C_Wait_uSec(10);
+                              Port_I2CSCL = 0;
+                              input = input << 1;
+                      }
+                      I2C_Wait_uSec(10);
+                      TestAck();
+              }
+              
+              
+              void   Frame_SendStart(PackHeader _packHeader)
+              {
+                      unsigned char _checkSum = 0;
+                      unsigned char _i;
+                      unsigned char *_bufPoint;
+              
+                      _bufPoint = (unsigned char *)&_packHeader;
+                      I2C_Start();
+                      for (_i = 0;_i < sizeof(_packHeader);_i++, _bufPoint++)
+                      {
+                              Write_Byte(*_bufPoint);
+                      }
+              }
+              
+              
+              unsigned char Frame_SendData(PackStrcut _packStrcut)
+              {
+                      unsigned char _checkSum = 0;
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 8   
+
+                      unsigned char _i;
+                      unsigned char *_bufPoint;
+              
+                      _bufPoint = (unsigned char *)&_packStrcut;
+                      for (_i = 0;_i < sizeof(_packStrcut);_i++, _bufPoint++)
+                      {
+                              Write_Byte(*_bufPoint);
+                              _checkSum += *_bufPoint;
+                      }
+                      return _checkSum;
+              }
+              
+              
+              /*******************************************************************************
+              * 函数名:TKDebugFunc
+              * 功  能 : 数据发送
+               * 返回值：无
+               * 参  数：无
+               ******************************************************************************/
+              
+              
+              void TKDebugFunc(unsigned int *tkData1, unsigned int *tkData2, unsigned char DataSize)
+              {
+                      PackHeader packHeader;
+                      PackStrcut packStrcut;//
+                      unsigned char checksum = 0;
+                      unsigned char i;
+              
+                      packHeader.Slave_Addr = C_SlaveAddr;
+                      packHeader.Frame_Header = C_FrameHeader;
+                      packHeader.length = sizeof(packStrcut) * DataSize + 2;        //长度=数据长度(1)+按键数据(6*X)+
+             -校验码(1)
+                      checksum = (unsigned char)(packHeader.length);   //校验码为除从机地址和0X55AA外的所有数据
+             -之和
+                      Frame_SendStart(packHeader);
+                      for (i = 0;i < DataSize;i++)
+                      {
+                              packStrcut.debug_baseLine = *(tkData1 + i);
+                              packStrcut.debug_rawData = *(tkData2 + i);
+                              packStrcut.debug_noiseData = abs(*(tkData1 + i) - *(tkData2 + i));  //
+              
+                              checksum += Frame_SendData(packStrcut);
+              
+                      }
+                      Write_Byte(checksum);//发送校验和
+                      I2C_Stop();
+              
+              }
+              #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    793    ----
+   CONSTANT SIZE    =     96    ----
+   XDATA SIZE       =    156    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =      5    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+C51 COMPILER V9.59.0.0   BSP_TOUCH_SOURCE                                                  03/28/2024 10:29:18 PAGE 9   
+
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

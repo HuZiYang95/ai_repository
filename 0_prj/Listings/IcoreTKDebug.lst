@@ -1,0 +1,229 @@
+C51 COMPILER V9.59.0.0   ICORETKDEBUG                                                      08/29/2024 16:47:02 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE ICORETKDEBUG
+OBJECT MODULE PLACED IN .\Objects\IcoreTKDebug.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\IcoreTKDebug.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bsp;..
+                    -\2_hal;..\3_app;..\4_user) DEBUG PRINT(.\Listings\IcoreTKDebug.lst) OBJECT(.\Objects\IcoreTKDebug.obj)
+
+line level    source
+
+   1          
+   2          #include "TouchKeyCTC.h"
+   3          #include "IcoreTKDebug.h"
+   4          
+   5          
+   6          
+   7          
+   8          /*******************************通信参数*************************************/
+   9          #define WriteDeviceAddress 0xa0
+  10          #define ReadDviceAddress 0xa1
+  11          #define  Data_ADDR    0X00
+  12          #define   C_SlaveAddr    0x28
+  13          #define   C_FrameHeader  0x55AA
+  14          /***************************************************************************/
+  15          
+  16          
+  17          ///*******************************通信引脚P10 P11*******************************/
+  18          #define   Port_I2CSCL   P10                               //通信SCL口，连接到仿真器SCK
+  19          #define   Port_I2CSDA   P11                               //通信SDA口， 连接到仿真器SDA
+  20          #define   Port_I2CSDA_SETIN    P1IO &= 0XFD;P1PU |= 0x02; //将通信SDA口设置为输入，并开启该�
+             -��口上拉电阻
+  21          #define   Port_I2CSDA_SETOUT   P1IO |= 0X02;              //将通信SDA端口配置为输出
+  22          #define   Port_I2CSCL_SETOUT   P1IO |= 0X01;               //将通信SCL端口配置为输出
+  23          /***************************************************************************/
+  24          
+  25          
+  26          
+  27          /*******************************通信时序************************************/
+  28          #if TK_DEBUG_ENABLE
+              
+              /*************变量定义*****************/
+              unsigned char r1ms_tkFrame;
+              
+              /*************函数声明*****************/
+              void TK_FrameSender(unsigned int *tkData1, unsigned int *tkData2, unsigned char DataSize);
+              
+              /*************函数定义*****************/
+              void I2C_Wait_uSec(unsigned char  num)
+              {
+                      while (num--);
+              }
+              
+              
+              /***************************************************************************/
+              void I2C_Start()
+              {
+                      Port_I2CSDA = 1;
+                      Port_I2CSCL = 1;
+                      I2C_Wait_uSec(20);
+                      Port_I2CSDA = 0;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSCL = 0;
+              }
+              
+C51 COMPILER V9.59.0.0   ICORETKDEBUG                                                      08/29/2024 16:47:02 PAGE 2   
+
+              /***************************************************************************/
+              void I2C_Stop()
+              {
+                      Port_I2CSCL = 0;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSDA = 0;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSCL = 1;
+                      I2C_Wait_uSec(200);
+                      Port_I2CSDA = 1;
+              }
+              
+              /***************************************************************************/
+              //void I2C_Ack()
+              //{
+              //      Port_I2CSDA = 0;
+              //      I2C_Wait_uSec(200);
+              //      Port_I2CSCL = 1;
+              //      I2C_Wait_uSec(200);
+              //      Port_I2CSCL = 0;
+              //      I2C_Wait_uSec(200);
+              //      Port_I2CSDA = 1;
+              //}
+              
+              /***************************************************************************/
+              //void I2C_NoAck()
+              //{
+              //      Port_I2CSDA = 1;
+              //      I2C_Wait_uSec(200);
+              //      Port_I2CSCL = 1;
+              //      I2C_Wait_uSec(200);
+              //      Port_I2CSCL = 0;
+              //}
+              
+              /***************************************************************************/
+              bit TestAck()
+              {
+                      bit ErrorBit;
+                      Port_I2CSDA_SETIN;
+                      I2C_Wait_uSec(20);
+                      Port_I2CSCL = 1;
+                      I2C_Wait_uSec(20);
+                      ErrorBit = Port_I2CSDA;
+                      Port_I2CSCL = 0;
+                      Port_I2CSDA_SETOUT;
+              
+                      return(ErrorBit);
+              }
+              
+              /***************************************************************************/
+              void Write_Byte(unsigned char input)
+              {
+                      unsigned char temp;
+                      for (temp = 8;temp > 0;temp--)
+                      {
+                              Port_I2CSDA = (bit)(input & 0x80);
+                              I2C_Wait_uSec(10);
+                              Port_I2CSCL = 1;
+                              I2C_Wait_uSec(10);
+                              Port_I2CSCL = 0;
+                              input = input << 1;
+                      }
+C51 COMPILER V9.59.0.0   ICORETKDEBUG                                                      08/29/2024 16:47:02 PAGE 3   
+
+                      I2C_Wait_uSec(10);
+                      TestAck();
+              }
+              
+              
+              
+              
+              
+              void   Frame_SendStart(PackHeader _packHeader)
+              {
+                      unsigned char _checkSum = 0;
+                      unsigned char _i;
+                      unsigned char *_bufPoint;
+              
+                      _bufPoint = (unsigned char *)&_packHeader;
+                      I2C_Start();
+                      for (_i = 0;_i < sizeof(_packHeader);_i++, _bufPoint++)
+                      {
+                              Write_Byte(*_bufPoint);
+                      }
+              }
+              
+              
+              unsigned char Frame_SendData(PackStrcut _packStrcut)
+              {
+                      unsigned char _checkSum = 0;
+                      unsigned char _i;
+                      unsigned char *_bufPoint;
+              
+                      _bufPoint = (unsigned char *)&_packStrcut;
+                      for (_i = 0;_i < sizeof(_packStrcut);_i++, _bufPoint++)
+                      {
+                              Write_Byte(*_bufPoint);
+                              _checkSum += *_bufPoint;
+                      }
+                      return _checkSum;
+              }
+              
+              
+              /*******************************************************************************
+              * 函数名:TK_FrameSender
+              * 功  能 : 数据发送
+               * 返回值：无
+               * 参  数：无
+               ******************************************************************************/
+              
+              
+              void TK_FrameSender(unsigned int *tkData1, unsigned int *tkData2, unsigned char DataSize)
+              {
+                      PackHeader packHeader;
+                      PackStrcut packStrcut;//
+                      unsigned char checksum = 0;
+                      unsigned char i;
+                      Port_I2CSDA_SETOUT                //将通信SDA端口配置为输出
+                              Port_I2CSCL_SETOUT                //将通信SCL端口配置为输出        //P10 P11输出作为通信
+             -引脚
+                              packHeader.Slave_Addr = C_SlaveAddr;
+                      packHeader.Frame_Header = C_FrameHeader;
+                      packHeader.length = sizeof(packStrcut) * DataSize + 2;        //长度=数据长度(1)+按键数据(6*X)+
+             -校验码(1)
+                      checksum = (unsigned char)(packHeader.length);   //校验码为除从机地址和0X55AA外的所有数据
+             -之和
+C51 COMPILER V9.59.0.0   ICORETKDEBUG                                                      08/29/2024 16:47:02 PAGE 4   
+
+                      Frame_SendStart(packHeader);
+                      for (i = 0;i < DataSize;i++)
+                      {
+                              packStrcut.debug_baseLine = *(tkData1 + i);
+                              packStrcut.debug_rawData = *(tkData2 + i);
+                              packStrcut.debug_noiseData = abs(*(tkData1 + i) - *(tkData2 + i));  //
+              
+                              checksum += Frame_SendData(packStrcut);
+              
+                      }
+                      Write_Byte(checksum);//发送校验和
+                      I2C_Stop();
+              
+              }
+              
+              
+              #endif
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   ----    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

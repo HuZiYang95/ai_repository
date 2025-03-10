@@ -1,0 +1,17 @@
+".\Objects\bsp_STARTUP.obj",
+".\Objects\bsp_adc.obj",
+".\Objects\bsp_crc_sum.obj",
+".\Objects\bsp_flash_eep.obj",
+".\Objects\bsp_gpio.obj",
+".\Objects\bsp_spi.obj",
+".\Objects\bsp_timer.obj",
+".\Objects\bsp_uart.obj",
+".\Objects\bsp_wdt_wt_lvr_lvd.obj",
+".\Objects\bsp_uart_ringbuf.obj",
+".\Objects\IcoreTKDebug.obj",
+".\Objects\TouchKeyCTC_V1.9.obj",
+"..\1_bsp\IcoreTouchKeyLib_Small_V1.9.LIB",
+".\Objects\main.obj" 
+TO ".\Objects\prj" 
+
+PRINT(".\Listings\prj.map") REMOVEUNUSED 

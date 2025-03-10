@@ -1,0 +1,337 @@
+C51 COMPILER V9.59.0.0   BSP_GPIO                                                          08/29/2024 16:46:59 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BSP_GPIO
+OBJECT MODULE PLACED IN .\Objects\bsp_gpio.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\bsp_gpio.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bsp;..\2_h
+                    -al;..\3_app;..\4_user) DEBUG PRINT(.\Listings\bsp_gpio.lst) OBJECT(.\Objects\bsp_gpio.obj)
+
+line level    source
+
+   1          /**
+   2           * @file bsp_gpio.c
+   3           * @author your name (you@domain.com)
+   4           * @brief 中微爱芯 & aip8f3264
+   5           * @brief RD8F12AE2207A / RD8F04DS1407A / RD8F04DS1007A
+   6           * @version 0.1
+   7           * @date 2024-01-04
+   8           *
+   9           * @copyright Copyright (c) 2024
+  10           *
+  11           */
+  12          #include "bsp_gpio.h"
+  13          #include "bsp_sfr.h"
+  14          #include "typedef.h"
+  15          
+  16          
+  17           /**
+  18            * @brief gpio初始化
+  19            *
+  20            */
+  21          void bsp_gpio_init(void)
+  22          {
+  23   1          // 数据寄存器初始化
+  24   1          P0 = 0x00;
+  25   1          P1 = 0x00;
+  26   1          P2 = 0x00;
+  27   1          P3 = 0x00;
+  28   1          P4 = 0x00;
+  29   1          P5 = 0x00;
+  30   1      
+  31   1          // 方向寄存器初始化
+  32   1          P0IO = 0x00;
+  33   1          P1IO = 0x00;
+  34   1          P2IO = 0x00;
+  35   1          P3IO = 0x00;
+  36   1          P4IO = 0x00;
+  37   1          P5IO = 0x00;
+  38   1      
+  39   1          // 上拉寄存器
+  40   1          P0PU = 0x00;
+  41   1          P1PU = 0x00;
+  42   1          P2PU = 0x00;
+  43   1          P3PU = 0x00;
+  44   1          P4PU = 0x00;
+  45   1          P5PU = 0x00;
+  46   1      }
+  47          
+  48          
+  49          /**
+  50           * @brief 读取gpio电平
+  51           *
+  52           * @param GpioPort gpio端口号
+  53           * @param GpioPin  gpio位号
+  54           *
+C51 COMPILER V9.59.0.0   BSP_GPIO                                                          08/29/2024 16:46:59 PAGE 2   
+
+  55           * @return unsigned char gpio电平
+  56           *
+  57           * @example if (PIN_0 == bsp_gpio_get(GPIO_PORT_0, PIN_0))
+  58           */
+  59          unsigned char bsp_gpio_get(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+  60          {
+  61   1          switch (GpioPort)
+  62   1          {
+  63   2              case GPIO_PORT_0:  return (P0 & GpioPin);
+  64   2              case GPIO_PORT_1:  return (P1 & GpioPin);
+  65   2              case GPIO_PORT_2:  return (P2 & GpioPin);
+  66   2              case GPIO_PORT_3:  return (P3 & GpioPin);
+  67   2              case GPIO_PORT_4:  return (P4 & GpioPin);
+  68   2              case GPIO_PORT_5:  return (P5 & GpioPin);
+  69   2              default:  return 0;
+  70   2          }
+  71   1      }
+  72          
+  73          
+  74          /**
+  75           * @brief gpio-高电平
+  76           *
+  77           * @param GpioPort gpio端口号
+  78           * @param GpioPin gpio位号
+  79           *
+  80           * @example bsp_gpio_high (GPIO_PORT_0, PIN_0);
+  81           */
+  82          void bsp_gpio_high(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+  83          {
+  84   1          switch (GpioPort)
+  85   1          {
+  86   2              case GPIO_PORT_0:  P0 |= GpioPin;  break;
+  87   2              case GPIO_PORT_1:  P1 |= GpioPin;  break;
+  88   2              case GPIO_PORT_2:  P2 |= GpioPin;  break;
+  89   2              case GPIO_PORT_3:  P3 |= GpioPin;  break;
+  90   2              case GPIO_PORT_4:  P4 |= GpioPin;  break;
+  91   2              case GPIO_PORT_5:  P5 |= GpioPin;  break;
+  92   2              default:  break;
+  93   2          }
+  94   1      }
+  95          
+  96          
+  97          /**
+  98           * @brief gpio-低电平
+  99           *
+ 100           * @param GpioPort gpio端口号
+ 101           * @param GpioPin gpio位号
+ 102           *
+ 103           * @example bsp_gpio_low (GPIO_PORT_0, PIN_0);
+ 104           */
+ 105          void bsp_gpio_low(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 106          {
+ 107   1          switch (GpioPort)
+ 108   1          {
+ 109   2              case GPIO_PORT_0:  P0 &= ~GpioPin;  break;
+ 110   2              case GPIO_PORT_1:  P1 &= ~GpioPin;  break;
+ 111   2              case GPIO_PORT_2:  P2 &= ~GpioPin;  break;
+ 112   2              case GPIO_PORT_3:  P3 &= ~GpioPin;  break;
+ 113   2              case GPIO_PORT_4:  P4 &= ~GpioPin;  break;
+ 114   2              case GPIO_PORT_5:  P5 &= ~GpioPin;  break;
+ 115   2              default:  break;
+ 116   2          }
+C51 COMPILER V9.59.0.0   BSP_GPIO                                                          08/29/2024 16:46:59 PAGE 3   
+
+ 117   1      }
+ 118          
+ 119          
+ 120          /**
+ 121           * @brief gpio-取反
+ 122           *
+ 123           * @param GpioPort gpio端口号
+ 124           * @param GpioPin gpio位号
+ 125           *
+ 126           * @example bsp_gpio_turn (GPIO_PORT_0, PIN_0);
+ 127           */
+ 128          void bsp_gpio_turn(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 129          {
+ 130   1          switch (GpioPort)
+ 131   1          {
+ 132   2              case GPIO_PORT_0:  P0 ^= GpioPin;  break;
+ 133   2              case GPIO_PORT_1:  P1 ^= GpioPin;  break;
+ 134   2              case GPIO_PORT_2:  P2 ^= GpioPin;  break;
+ 135   2              case GPIO_PORT_3:  P3 ^= GpioPin;  break;
+ 136   2              case GPIO_PORT_4:  P4 ^= GpioPin;  break;
+ 137   2              case GPIO_PORT_5:  P5 ^= GpioPin;  break;
+ 138   2              default:  break;
+ 139   2          }
+ 140   1      }
+ 141          
+ 142          
+ 143          /**
+ 144           * @brief gpio-输出
+ 145           *
+ 146           * @param GpioPort gpio端口号
+ 147           * @param GpioPin gpio位号
+ 148           *
+ 149           * @example bsp_gpio_output (GPIO_PORT_0, PIN_0);
+ 150           */
+ 151          void bsp_gpio_output(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 152          {
+ 153   1          switch (GpioPort)
+ 154   1          {
+ 155   2              case GPIO_PORT_0:  P0IO |= GpioPin;  break;
+ 156   2              case GPIO_PORT_1:  P1IO |= GpioPin;  break;
+ 157   2              case GPIO_PORT_2:  P2IO |= GpioPin;  break;
+ 158   2              case GPIO_PORT_3:  P3IO |= GpioPin;  break;
+ 159   2              case GPIO_PORT_4:  P4IO |= GpioPin;  break;
+ 160   2              case GPIO_PORT_5:  P5IO |= GpioPin;  break;
+ 161   2              default:  break;
+ 162   2          }
+ 163   1      }
+ 164          
+ 165          
+ 166          /**
+ 167           * @brief gpio-输入
+ 168           *
+ 169           * @param GpioPort gpio端口号
+ 170           * @param GpioPin gpio位号
+ 171           *
+ 172           * @example bsp_gpio_input (GPIO_PORT_0, PIN_0);
+ 173           */
+ 174          void bsp_gpio_input(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 175          {
+ 176   1          switch (GpioPort)
+ 177   1          {
+ 178   2              case GPIO_PORT_0:  P0IO &= ~GpioPin;  break;
+C51 COMPILER V9.59.0.0   BSP_GPIO                                                          08/29/2024 16:46:59 PAGE 4   
+
+ 179   2              case GPIO_PORT_1:  P1IO &= ~GpioPin;  break;
+ 180   2              case GPIO_PORT_2:  P2IO &= ~GpioPin;  break;
+ 181   2              case GPIO_PORT_3:  P3IO &= ~GpioPin;  break;
+ 182   2              case GPIO_PORT_4:  P4IO &= ~GpioPin;  break;
+ 183   2              case GPIO_PORT_5:  P5IO &= ~GpioPin;  break;
+ 184   2              default:  break;
+ 185   2          }
+ 186   1      }
+ 187          
+ 188          
+ 189          /**
+ 190           * @brief gpio-上拉使能
+ 191           *
+ 192           * @param GpioPort gpio端口号
+ 193           * @param GpioPin gpio位号
+ 194           *
+ 195           * @example bsp_gpio_pullup_enable (GPIO_PORT_0, PIN_0);
+ 196           */
+ 197          void bsp_gpio_pullup_enable(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 198          {
+ 199   1          switch (GpioPort)
+ 200   1          {
+ 201   2              case GPIO_PORT_0:  P0PU |= GpioPin;  break;
+ 202   2              case GPIO_PORT_1:  P1PU |= GpioPin;  break;
+ 203   2              case GPIO_PORT_2:  P2PU |= GpioPin;  break;
+ 204   2              case GPIO_PORT_3:  P3PU |= GpioPin;  break;
+ 205   2              case GPIO_PORT_4:  P4PU |= GpioPin;  break;
+ 206   2              case GPIO_PORT_5:  P5PU |= GpioPin;  break;
+ 207   2              default:  break;
+ 208   2          }
+ 209   1      }
+ 210          
+ 211          
+ 212          /**
+ 213           * @brief gpio-上拉除能
+ 214           *
+ 215           * @param GpioPort gpio端口号
+ 216           * @param GpioPin gpio位号
+ 217           *
+ 218           * @example bsp_gpio_pullup_disable (GPIO_PORT_0, PIN_0);
+ 219           */
+ 220          void bsp_gpio_pullup_disable(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 221          {
+ 222   1          switch (GpioPort)
+ 223   1          {
+ 224   2              case GPIO_PORT_0:  P0PU &= ~GpioPin;  break;
+ 225   2              case GPIO_PORT_1:  P1PU &= ~GpioPin;  break;
+ 226   2              case GPIO_PORT_2:  P2PU &= ~GpioPin;  break;
+ 227   2              case GPIO_PORT_3:  P3PU &= ~GpioPin;  break;
+ 228   2              case GPIO_PORT_4:  P4PU &= ~GpioPin;  break;
+ 229   2              case GPIO_PORT_5:  P5PU &= ~GpioPin;  break;
+ 230   2              default:  break;
+ 231   2          }
+ 232   1      }
+ 233          
+ 234          
+ 235          /**
+ 236           * @brief gpio-开漏模式
+ 237           *
+ 238           * @param GpioPort gpio端口号
+ 239           * @param GpioPin gpio位号
+ 240           *
+C51 COMPILER V9.59.0.0   BSP_GPIO                                                          08/29/2024 16:46:59 PAGE 5   
+
+ 241           * @example bsp_gpio_od (GPIO_PORT_0, PIN_0);
+ 242           */
+ 243          void bsp_gpio_od(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 244          {
+ 245   1          switch (GpioPort)
+ 246   1          {
+ 247   2              case GPIO_PORT_0:  P0OD |= GpioPin;  break;
+ 248   2              case GPIO_PORT_1:  P1OD |= GpioPin;  break;
+ 249   2              case GPIO_PORT_2:  P2OD |= GpioPin;  break;
+ 250   2              case GPIO_PORT_3:  P3OD |= GpioPin;  break;
+ 251   2              case GPIO_PORT_4:  P4OD |= GpioPin;  break;
+ 252   2              case GPIO_PORT_5:  P5OD |= GpioPin;  break;
+ 253   2              default:  break;
+ 254   2          }
+ 255   1      }
+ 256          
+ 257          
+ 258          /**
+ 259           * @brief gpio-推挽模式
+ 260           *
+ 261           * @param GpioPort gpio端口号
+ 262           * @param GpioPin gpio位号
+ 263           *
+ 264           * @example bsp_gpio_od (GPIO_PORT_0, PIN_0);
+ 265           */
+ 266          void bsp_gpio_pp(TYPE_ENUM_GPIO_PORT GpioPort, unsigned char GpioPin)
+ 267          {
+ 268   1          switch (GpioPort)
+ 269   1          {
+ 270   2              case GPIO_PORT_0:  P0OD &= ~GpioPin;  break;
+ 271   2              case GPIO_PORT_1:  P1OD &= ~GpioPin;  break;
+ 272   2              case GPIO_PORT_2:  P2OD &= ~GpioPin;  break;
+ 273   2              case GPIO_PORT_3:  P3OD &= ~GpioPin;  break;
+ 274   2              case GPIO_PORT_4:  P4OD &= ~GpioPin;  break;
+ 275   2              case GPIO_PORT_5:  P5OD &= ~GpioPin;  break;
+ 276   2              default:  break;
+ 277   2          }
+ 278   1      }
+ 279          
+ 280          
+ 281          /**
+ 282           * @brief gpio - 大灌电流端口配置（80mA @ 5V）
+ 283           *
+ 284           * @param GpioCom COM口序号
+ 285           * @param Switch 开关
+ 286           *
+ 287           * @example bsp_gpio_bigdrive (GPIO_COM0_P00, ENABLE);
+ 288           */
+ 289          void bsp_gpio_bigdrive(TYPE_ENUM_GPIO_COM GpioCom, TYPE_ENUM_SWITCH SwitchFlag)
+ 290          {
+ 291   1          if (ENABLE == SwitchFlag)
+ 292   1          {
+ 293   2              BIGDRIVE |= GpioCom;
+ 294   2          }
+ 295   1          else
+ 296   1          {
+ 297   2              BIGDRIVE &= ~GpioCom;
+ 298   2          }
+ 299   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+C51 COMPILER V9.59.0.0   BSP_GPIO                                                          08/29/2024 16:46:59 PAGE 6   
+
+   CODE SIZE        =    564    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

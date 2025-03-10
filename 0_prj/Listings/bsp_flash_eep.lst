@@ -1,0 +1,221 @@
+C51 COMPILER V9.59.0.0   BSP_FLASH_EEP                                                     08/29/2024 16:46:58 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE BSP_FLASH_EEP
+OBJECT MODULE PLACED IN .\Objects\bsp_flash_eep.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE ..\1_bsp\bsp_flash_eep.c OMF2 OPTIMIZE(8,SPEED) BROWSE INCDIR(..\1_bsp;.
+                    -.\2_hal;..\3_app;..\4_user) DEBUG PRINT(.\Listings\bsp_flash_eep.lst) OBJECT(.\Objects\bsp_flash_eep.obj)
+
+line level    source
+
+   1          /**
+   2           * @file bsp_flash_eep.c
+   3           * @author your name (you@domain.com)
+   4           * @brief 中微爱芯 & aip8f3264
+   5           * @brief RD8F12AE2207A / RD8F04DS1407A / RD8F04DS1007A
+   6           * @version 0.1
+   7           * @date 2024-01-04
+   8           *
+   9           * @copyright Copyright (c) 2024
+  10           *
+  11           */
+  12          #include "bsp_flash_eep.h"
+  13          #include "bsp_sfr.h"
+  14          #include "typedef.h"
+  15          
+  16          
+  17           /**
+  18            * @brief 对flash地址进行保护
+  19            *
+  20            * @param ProteceFlashAddr 保护的地址段
+  21            */
+  22          void bsp_flash_protect(TYPE_ENUM_FLASH_PROTECE ProteceFlashAddr)
+  23          {
+  24   1          KEYCODE = 0x3C;
+  25   1          KEYCODE = 0x02;
+  26   1          KEYCODE = 0xA1;
+  27   1          FSCR1 = ProteceFlashAddr;
+  28   1          KEYCODE = 0;
+  29   1      }
+  30          
+  31          
+  32          /**
+  33           * @brief flash 页擦
+  34           *
+  35           * @param addr 页擦地址
+  36           */
+  37          void flash_erase_page(TYPE_ENUM_FLASH_ERASE EraseFlashAddr)
+  38          {
+  39   1          unsigned char Temp;
+  40   1      
+  41   1          Temp = IE0;
+  42   1          EA = 0;
+  43   1          bsp_flash_protect(FLASH_UNPROTECT);
+  44   1          FSAHR = EraseFlashAddr << 2;
+  45   1          FSALR = 0;
+  46   1          FSDR = 0;
+  47   1          KEYCODE = 0x3C;
+  48   1          KEYCODE = 0x02;
+  49   1          KEYCODE = 0xA1;
+  50   1          FSCR |= 0x02;
+  51   1          while (FSCR & 0x02);
+  52   1          _nop_();
+  53   1          _nop_();
+  54   1          _nop_();
+C51 COMPILER V9.59.0.0   BSP_FLASH_EEP                                                     08/29/2024 16:46:58 PAGE 2   
+
+  55   1          KEYCODE = 0;
+  56   1          bsp_flash_protect(FLASH_PROTECT_FFFF);
+  57   1          IE0 = Temp;
+  58   1      }
+  59          
+  60          
+  61          /**
+  62           * @brief flash字写
+  63           *
+  64           * @param addr flash地址
+  65           * @param dat  写入的数据
+  66           */
+  67          void bsp_flash_write_byte(unsigned int addr, unsigned char dat)
+  68          {
+  69   1          unsigned char Temp;
+  70   1      
+  71   1          Temp = IE0;
+  72   1          EA = 0;
+  73   1          bsp_flash_protect(FLASH_UNPROTECT);
+  74   1          FSAHR = (unsigned char)(addr >> 8);
+  75   1          FSALR = (unsigned char)(addr & 0xFF);
+  76   1          FSDR = dat;
+  77   1          KEYCODE = 0x3C;
+  78   1          KEYCODE = 0x02;
+  79   1          KEYCODE = 0xA1;
+  80   1          FSCR |= 0x01;
+  81   1          while (FSCR & 0x01);
+  82   1          _nop_();
+  83   1          _nop_();
+  84   1          _nop_();
+  85   1          KEYCODE = 0;
+  86   1          bsp_flash_protect(FLASH_PROTECT_FFFF);
+  87   1          IE0 = Temp;
+  88   1      }
+  89          
+  90          
+  91          /**
+  92           * @brief flash字读
+  93           *
+  94           * @param addr flash地址
+  95           *
+  96           * @return unsigned char 读取的数据
+  97           */
+  98          unsigned char bsp_flash_read_byte(unsigned int addr)
+  99          {
+ 100   1          return CBYTE[addr];
+ 101   1      }
+ 102          
+ 103          
+ 104          /**
+ 105           * @brief eep页擦
+ 106           *
+ 107           */
+ 108          void bsp_eep_erase_page(void)
+ 109          {
+ 110   1          unsigned char Temp;
+ 111   1      
+ 112   1          Temp = IE0;
+ 113   1          EA = 0;
+ 114   1          FSAHR = 0x00;
+ 115   1          FSALR = 0x00;
+ 116   1          FSDR = 0x00;
+C51 COMPILER V9.59.0.0   BSP_FLASH_EEP                                                     08/29/2024 16:46:58 PAGE 3   
+
+ 117   1          KEYCODE = 0x3C;
+ 118   1          KEYCODE = 0x02;
+ 119   1          KEYCODE = 0xA1;
+ 120   1          FSCR |= 0x20;   //enable eep
+ 121   1          FSCR |= 0x04;   //erase
+ 122   1          while (FSCR & 0x04);
+ 123   1          FSCR = 0;
+ 124   1          KEYCODE = 0;
+ 125   1          IE0 = Temp;
+ 126   1      }
+ 127          
+ 128          
+ 129          /**
+ 130           * @brief eep字写
+ 131           *
+ 132           * @param addr eep地址  { 0x0000 ~ 0x03FF }
+ 133           *
+ 134           * @param dat  写入的数据
+ 135           *
+ 136           * @note 注意写完把 "FSCR" 清零
+ 137           */
+ 138          void bsp_eep_write_byte(unsigned int addr, unsigned char dat)
+ 139          {
+ 140   1          unsigned char Temp;
+ 141   1      
+ 142   1          Temp = IE0;
+ 143   1          EA = 0;
+ 144   1          FSAHR = (unsigned char)(addr >> 8);
+ 145   1          FSALR = (unsigned char)(addr & 0xFF);
+ 146   1          FSDR = dat;
+ 147   1          KEYCODE = 0x3C;
+ 148   1          KEYCODE = 0x02;
+ 149   1          KEYCODE = 0xA1;
+ 150   1          FSCR |= 0x20;   //enable eep
+ 151   1          FSCR |= 0x10;   //write
+ 152   1          while (FSCR & 0x10);
+ 153   1          FSCR = 0;
+ 154   1          KEYCODE = 0;
+ 155   1          IE0 = Temp;
+ 156   1      }
+ 157          
+ 158          
+ 159          /**
+ 160           * @brief eep字读
+ 161           *
+ 162           * @param addr eep地址  { 0x0000 ~ 0x03FF }
+ 163           *
+ 164           * @return unsigned char 读取的数据
+ 165           *
+ 166           * @note 注意写完把 "FSCR" 清零
+ 167           */
+ 168          unsigned char bsp_eep_read_byte(unsigned int addr)
+ 169          {
+ 170   1          unsigned char dat = 0;
+ 171   1          unsigned char Temp;
+ 172   1      
+ 173   1          Temp = IE0;
+ 174   1          EA = 0;
+ 175   1          FSAHR = (unsigned char)(addr >> 8);
+ 176   1          FSALR = (unsigned char)(addr & 0xFF);
+ 177   1          KEYCODE = 0x3C;
+ 178   1          KEYCODE = 0x02;
+C51 COMPILER V9.59.0.0   BSP_FLASH_EEP                                                     08/29/2024 16:46:58 PAGE 4   
+
+ 179   1          KEYCODE = 0xA1;
+ 180   1          FSCR |= 0x20;          //enable eep
+ 181   1          FSCR |= 0x08;          //read
+ 182   1          dat = CBYTE[addr];
+ 183   1          FSCR = 0;
+ 184   1          KEYCODE = 0;
+ 185   1          IE0 = Temp;
+ 186   1          return dat;
+ 187   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    257    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+   EDATA SIZE       =   ----    ----
+   HDATA SIZE       =   ----    ----
+   XDATA CONST SIZE =   ----    ----
+   FAR CONST SIZE   =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
